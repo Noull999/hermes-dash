@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import Message from './Message';
 import InputBox from './InputBox';
 import { useChatStore } from '@/store/useChatStore';
-import { MessageSquare, Wifi, WifiOff } from 'lucide-react';
+import { Wifi, WifiOff } from 'lucide-react';
 
 export default function ChatView() {
   const messages = useChatStore((s) => s.messages);
@@ -44,8 +44,8 @@ export default function ChatView() {
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
-            <div className="w-16 h-16 rounded-2xl bg-[rgba(0,212,255,0.1)] flex items-center justify-center mb-4">
-              <MessageSquare size={28} className="text-[var(--accent)]" />
+            <div className="w-20 h-20 rounded-2xl bg-[rgba(0,212,255,0.08)] flex items-center justify-center mb-4 overflow-hidden border border-[rgba(0,212,255,0.12)]">
+              <img src="/hermes-avatar.svg" alt="Hermes" className="w-16 h-16" />
             </div>
             <h3 className="text-lg font-semibold text-[var(--text)] mb-2">Hermes Chat</h3>
             <p className="text-sm text-[var(--text-muted)] max-w-xs">

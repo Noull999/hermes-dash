@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Hermes Dashboard',
     short_name: 'Hermes',
-    description: 'Hermes Agent Dashboard',
+    description: 'Hermes Agent Dashboard — Tu asistente personal con IA',
     start_url: '/',
     display: 'standalone',
     background_color: '#0a0a0f',

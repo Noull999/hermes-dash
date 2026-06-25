@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0a1a"/>
+      <stop offset="100%" stop-color="#1a0a2e"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00d4ff"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="wings" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00d4ff"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="248" fill="url(#bg)" stroke="url(#accent)" stroke-width="6"/>
+
+  <!-- Wing left -->
+  <path d="M256 180 C180 140 120 110 80 130 C60 140 50 170 70 200 C90 230 180 260 256 260"
+        fill="none" stroke="url(#wings)" stroke-width="8" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- Wing right -->
+  <path d="M256 180 C332 140 392 110 432 130 C452 140 462 170 442 200 C422 230 332 260 256 260"
+        fill="none" stroke="url(#wings)" stroke-width="8" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- Wing feathers left -->
+  <path d="M256 200 C220 180 180 165 155 175"
+        fill="none" stroke="#00d4ff" stroke-width="5" stroke-linecap="round" opacity="0.4"/>
+  <path d="M256 220 C220 200 170 185 140 195"
+        fill="none" stroke="#7c3aed" stroke-width="4" stroke-linecap="round" opacity="0.3"/>
+
+  <!-- Wing feathers right -->
+  <path d="M256 200 C292 180 332 165 357 175"
+        fill="none" stroke="#00d4ff" stroke-width="5" stroke-linecap="round" opacity="0.4"/>
+  <path d="M256 220 C292 200 342 185 372 195"
+        fill="none" stroke="#7c3aed" stroke-width="4" stroke-linecap="round" opacity="0.3"/>
+
+  <!-- Caduceus staff -->
+  <line x1="256" y1="320" x2="256" y2="130" stroke="url(#accent)" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- Snake left -->
+  <path d="M256 130 C230 140 220 160 240 180 C260 200 240 220 256 240"
+        fill="none" stroke="#00d4ff" stroke-width="5" stroke-linecap="round" opacity="0.8"/>
+
+  <!-- Snake right -->
+  <path d="M256 130 C282 140 292 160 272 180 C252 200 272 220 256 240"
+        fill="none" stroke="#7c3aed" stroke-width="5" stroke-linecap="round" opacity="0.8"/>
+
+  <!-- Wings small -->
+  <path d="M256 110 C240 95 220 85 205 95 C195 105 210 120 256 120"
+        fill="none" stroke="#00d4ff" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+  <path d="M256 110 C272 95 292 85 307 95 C317 105 302 120 256 120"
+        fill="none" stroke="#7c3aed" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- Hermes head silhouette -->
+  <ellipse cx="256" cy="290" rx="45" ry="35" fill="url(#accent)" opacity="0.15"/>
+
+  <!-- Left Wing (large, decorative bottom) -->
+  <path d="M180 290 C140 270 100 280 90 310 C80 340 130 350 180 330"
+        fill="none" stroke="url(#accent)" stroke-width="3" stroke-linecap="round" opacity="0.3"/>
+
+  <!-- Right Wing (large, decorative bottom) -->
+  <path d="M332 290 C372 270 412 280 422 310 C432 340 382 350 332 330"
+        fill="none" stroke="url(#accent)" stroke-width="3" stroke-linecap="round" opacity="0.3"/>
+
+  <!-- Petasos (winged hat) top -->
+  <path d="M216 265 C216 245 236 230 256 230 C276 230 296 245 296 265"
+        fill="none" stroke="url(#accent)" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+
+  <!-- Orb at staff top -->
+  <circle cx="256" cy="130" r="12" fill="#00d4ff" opacity="0.8"/>
+  <circle cx="256" cy="130" r="6" fill="#ffffff" opacity="0.5"/>
+
+  <!-- Glow effect -->
+  <circle cx="256" cy="256" r="200" fill="url(#accent)" opacity="0.03"/>
+</svg>

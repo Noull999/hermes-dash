@@ -1,6 +1,6 @@
 'use client';
 
-import { Bot, User, Copy, Check } from 'lucide-react';
+import { User, Copy, Check } from 'lucide-react';
 import { useState } from 'react';
 import { ChatMessage } from '@/store/useChatStore';
 import { formatRelativeTime } from '@/lib/utils';
@@ -90,7 +90,7 @@ export default function Message({ message }: MessageProps) {
             : 'bg-[rgba(139,92,246,0.15)] text-[var(--purple)]'
         }`}
       >
-        {isUser ? <User size={16} /> : <Bot size={16} />}
+        {isUser ? <User size={16} /> : <img src="/hermes-avatar.svg" alt="Hermes" className="w-6 h-6" />}
       </div>
 
       {/* Content */}
