@@ -16,6 +16,17 @@ export async function GET(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await params;
+
+  // Temporary runtime diagnostic — /api/proxy/_diag
+  if (path[0] === '_diag') {
+    return NextResponse.json({
+      hasToken: !!process.env.API_TOKEN,
+      tokenLen: (process.env.API_TOKEN || '').length,
+      tokenHead: (process.env.API_TOKEN || '').slice(0, 6),
+      backend: process.env.BACKEND_URL || '(default)',
+    });
+  }
+
   const url = backendUrl(path, request.nextUrl.searchParams.toString());
 
   try {
