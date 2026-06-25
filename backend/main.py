@@ -16,6 +16,11 @@ from routes.timeline import router as timeline_router
 from routes.claude import router as claude_router
 from routes.brain import router as brain_router
 from routes.reminders import router as reminders_router
+from routes.email import router as email_router
+from routes.calendar import router as calendar_router
+from routes.jobs import router as jobs_router
+from routes.push import router as push_router
+from routes.gamification import router as gamification_router
 from chat_ws import router as chat_ws_router
 
 app = FastAPI(
@@ -57,4 +62,9 @@ app.include_router(timeline_router)
 app.include_router(claude_router)
 app.include_router(brain_router)
 app.include_router(reminders_router)
+app.include_router(email_router)
+app.include_router(calendar_router)
+app.include_router(jobs_router)
+app.include_router(push_router)
+app.include_router(gamification_router)
 app.include_router(chat_ws_router)
