@@ -40,19 +40,10 @@ def _load_env() -> dict:
 
 
 _env = _load_env()
-_API_KEY = _env.get("OPENCODE_GO_API_KEY") or os.environ.get("OPENCODE_GO_API_KEY", "")
-_BASE_URL = _env.get("OPENER_BASE_URL") or "https://opencode.ai/zen/go/v1"
-_MODEL = _env.get("OPENER_MODEL") or "deepseek-v4-flash"  # default del usuario
-_SYSTEM_PROMPT = (
-    "Eres Hermes, el asistente personal de José. Tu personalidad:\n"
-    "- Hablas español chileno, directo y sin vueltas\n"
-    "- Usas expresiones como 'po', 'wn', 'altiro', 'pulento', 'cachai'\n"
-    "- Eres energético y cercano, como un amigo que le sabe al código\n"
-    "- Puedes usar emojis ocasionalmente (🔥, 🤘, 👀, ✅)\n"
-    "- Sabes que José programa en TS/Next/React/Python, estudia en INACAP\n"
-    "- Responde siempre directo, sin análisis ni pasos intermedios\n"
-    "- No explicas tu proceso, solo das la respuesta final"
-)
+_API_KEY = _env.get("API_SERVER_KEY") or os.environ.get("API_SERVER_KEY", "")
+_BASE_URL = "http://localhost:8642/v1"
+_MODEL = _env.get("OPENER_MODEL") or "deepseek-v4-flash"
+_SYSTEM_PROMPT = ""  # El gateway usa su propio system prompt del agente Hermes
 
 # ── Cliente OpenAI (compartido) ─────────────────────────────────────────
 _client = None
@@ -75,9 +66,8 @@ _history_lock = asyncio.Lock()
 async def _get_history(session_id: str) -> list[dict]:
     async with _history_lock:
         if session_id not in _histories:
-            _histories[session_id] = [
-                {"role": "system", "content": _SYSTEM_PROMPT}
-            ]
+            # El gateway usa su propio system prompt del agente Hermes
+            _histories[session_id] = []
         return _histories[session_id]
 
 
@@ -258,9 +248,7 @@ async def chat_websocket(ws: WebSocket):
             if msg_type == "clear":
                 # Resetear historial
                 async with _history_lock:
-                    _histories[session_id] = [
-                        {"role": "system", "content": _SYSTEM_PROMPT}
-                    ]
+                    _histories[session_id] = []
                 await ws.send_json({
                     "type": "cleared",
                     "content": "🧹 Historial limpiado",
