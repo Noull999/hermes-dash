@@ -4,8 +4,10 @@ import os
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-# Read API_TOKEN from environment, fallback to 'dev-token'
-API_TOKEN = os.environ.get("API_TOKEN", "dev-token")
+_token = os.environ.get("API_TOKEN")
+if not _token:
+    raise RuntimeError("API_TOKEN environment variable is required but not set")
+API_TOKEN: str = _token
 security = HTTPBearer(auto_error=False)
 
 
