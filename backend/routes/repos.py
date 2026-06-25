@@ -1,4 +1,4 @@
-"""GET /api/repos — Git repos in /root/ with remote status."""
+"""GET /api/repos — All GitHub repos + local git status for repos on this VPS."""
 
 import os
 import subprocess
@@ -10,12 +10,12 @@ from auth import verify_token
 
 router = APIRouter(tags=["repos"])
 
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+GITHUB_USER = "Noull999"
 REPO_BASE = "/root"
 
 
 def _run_git(cmd: list[str], cwd: str) -> str:
-    """Run a git command and return stdout stripped."""
     try:
         r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=15)
         return r.stdout.strip()
@@ -23,46 +23,86 @@ def _run_git(cmd: list[str], cwd: str) -> str:
         return ""
 
 
-def _get_github_status(repo_dir: str, branch: str) -> dict:
-    """Compare local commit with GitHub remote (via API)."""
-    if not GITHUB_TOKEN:
-        return {"status": "unknown", "behind": 0, "ahead": 0}
+def _github_headers() -> dict:
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    if GITHUB_TOKEN:
+        headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+    return headers
 
-    # Infer owner/name from remote origin URL
-    remote = _run_git(["git", "remote", "get-url", "origin"], repo_dir)
-    if not remote:
-        return {"status": "unknown", "behind": 0, "ahead": 0}
 
-    # Parse: git@github.com:user/repo.git or https://github.com/user/repo.git
-    remote = remote.strip()
-    if "github.com" not in remote:
-        return {"status": "unknown", "behind": 0, "ahead": 0}
-
-    parts = remote.replace("git@github.com:", "").replace("https://github.com/", "").replace(".git", "").split("/")
-    if len(parts) < 2:
-        return {"status": "unknown", "behind": 0, "ahead": 0}
-    owner, repo_name = parts[0], parts[1]
-
-    local_commit = _run_git(["git", "rev-parse", "HEAD"], repo_dir)
-    if not local_commit:
-        return {"status": "unknown", "behind": 0, "ahead": 0}
+def _fetch_github_repos() -> list[dict]:
+    """Fetch all repos for the user from the GitHub API."""
+    repos = []
+    page = 1
+    client = httpx.Client(timeout=15)
 
     try:
-        headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
-        url = f"https://api.github.com/repos/{owner}/{repo_name}/commits/{branch}"
-        resp = httpx.get(url, headers=headers, timeout=10)
-        if resp.is_error:
-            return {"status": "unknown", "behind": 0, "ahead": 0}
+        while True:
+            url = f"https://api.github.com/users/{GITHUB_USER}/repos?per_page=100&page={page}&sort=updated"
+            resp = client.get(url, headers=_github_headers())
+            if resp.is_error:
+                break
+            batch = resp.json()
+            if not batch:
+                break
+            for r in batch:
+                repos.append({
+                    "name": r["name"],
+                    "github_url": r["html_url"],
+                    "description": r.get("description") or "",
+                    "language": r.get("language") or "",
+                    "updated_at": r.get("updated_at", ""),
+                    "private": r.get("private", False),
+                    "fork": r.get("fork", False),
+                })
+            page += 1
+    except Exception:
+        pass
+    finally:
+        client.close()
 
-        remote_sha = resp.json().get("sha", "")
-        if not remote_sha:
-            return {"status": "unknown", "behind": 0, "ahead": 0}
+    return repos
 
-        # Compare
-        compare_url = f"https://api.github.com/repos/{owner}/{repo_name}/compare/{local_commit}...{remote_sha}"
+
+def _get_local_status(repo_dir: str, branch: str) -> dict:
+    """Compare local commit with GitHub remote (via API)."""
+    local_commit = _run_git(["git", "rev-parse", "--short", "HEAD"], repo_dir)
+    local_full = _run_git(["git", "rev-parse", "HEAD"], repo_dir)
+    vps_message = _run_git(["git", "log", "-1", "--pretty=%B"], repo_dir)
+    status_out = _run_git(["git", "status", "--porcelain"], repo_dir)
+    dirty = bool(status_out)
+
+    result = {
+        "branch": branch,
+        "vps_commit": local_commit,
+        "vps_message": vps_message.split("\n")[0] if vps_message else "",
+        "dirty": dirty,
+        "status": "unknown",
+        "behind": 0,
+        "ahead": 0,
+    }
+
+    if not local_full:
+        return result
+
+    # Get owner/name from remote
+    remote = _run_git(["git", "remote", "get-url", "origin"], repo_dir)
+    if not remote or "github.com" not in remote:
+        return result
+
+    remote = remote.strip()
+    parts = remote.replace("git@github.com:", "").replace("https://github.com/", "").replace(".git", "").split("/")
+    if len(parts) < 2:
+        return result
+    owner, repo_name = parts[0], parts[1]
+
+    try:
+        headers = _github_headers()
+        # Compare local commit vs remote default branch
+        compare_url = f"https://api.github.com/repos/{owner}/{repo_name}/compare/{local_full}...{branch}"
         comp = httpx.get(compare_url, headers=headers, timeout=10)
         if comp.is_error:
-            return {"status": "unknown", "behind": 0, "ahead": 0}
+            return result
 
         comp_data = comp.json()
         behind = comp_data.get("behind_by", 0)
@@ -77,50 +117,68 @@ def _get_github_status(repo_dir: str, branch: str) -> dict:
         else:
             status = "synced"
 
-        return {"status": status, "behind": behind, "ahead": ahead}
+        result.update({"status": status, "behind": behind, "ahead": ahead})
     except Exception:
-        return {"status": "unknown", "behind": 0, "ahead": 0}
+        pass
+
+    return result
 
 
-@router.get("/api/repos")
-def get_repos(_token: str = Depends(verify_token)):
-    """List all git repos in /root/ with branch, commit, and remote status."""
-    repos = []
-
+def _scan_local_repos() -> dict[str, dict]:
+    """Scan /root/ for git repos and return their local status keyed by name."""
+    local = {}
     try:
         for entry in os.listdir(REPO_BASE):
             repo_dir = os.path.join(REPO_BASE, entry)
             git_dir = os.path.join(repo_dir, ".git")
-            if not os.path.isdir(git_dir):
-                # Could be a bare repo with .git file
-                if not os.path.exists(git_dir):
-                    continue
+            if not os.path.isdir(git_dir) and not os.path.exists(git_dir):
+                continue
 
             branch = _run_git(["git", "rev-parse", "--abbrev-ref", "HEAD"], repo_dir)
             if not branch:
                 continue
 
-            vps_commit = _run_git(["git", "rev-parse", "--short", "HEAD"], repo_dir)
-            vps_message = _run_git(["git", "log", "-1", "--pretty=%B"], repo_dir)
+            local[entry] = _get_local_status(repo_dir, branch)
+    except Exception:
+        pass
+    return local
 
-            # Check dirty status
-            status_out = _run_git(["git", "status", "--porcelain"], repo_dir)
-            dirty = bool(status_out)
 
-            # Remote status
-            remote_info = _get_github_status(repo_dir, branch)
+@router.get("/api/repos")
+def get_repos(_token: str = Depends(verify_token)):
+    """List ALL GitHub repos + local status for repos cloned on this VPS."""
+    github_repos = _fetch_github_repos()
+    local_repos = _scan_local_repos()
 
-            repos.append({
-                "name": entry,
-                "branch": branch,
-                "vps_commit": vps_commit,
-                "vps_message": vps_message,
-                "dirty": dirty,
-                **remote_info,
+    merged = []
+    for gh in github_repos:
+        name = gh["name"]
+        entry = {
+            "name": name,
+            "github_url": gh["github_url"],
+            "description": gh["description"],
+            "language": gh["language"],
+            "updated_at": gh["updated_at"],
+            "private": gh["private"],
+            "fork": gh["fork"],
+            "on_vps": name in local_repos,
+        }
+
+        # Merge local git status if cloned on this VPS
+        if name in local_repos:
+            entry.update(local_repos[name])
+        else:
+            entry.update({
+                "branch": "",
+                "vps_commit": "",
+                "vps_message": "",
+                "dirty": False,
+                "status": "not-cloned",
+                "behind": 0,
+                "ahead": 0,
             })
 
-    except Exception as e:
-        return {"error": str(e), "repos": repos}
+        merged.append(entry)
 
-    repos.sort(key=lambda r: r["name"])
-    return repos
+    merged.sort(key=lambda r: r.get("updated_at", ""), reverse=True)
+    return merged
