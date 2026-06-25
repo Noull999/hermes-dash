@@ -29,7 +29,7 @@ export default function Card({
       className={classNames(
         'glass',
         paddings[padding],
-        hover && 'cursor-pointer hover:border-[rgba(255,255,255,0.12)] active:scale-[0.99]',
+        hover && 'cursor-pointer active:scale-[0.99] hover:-translate-y-0.5',
         className
       )}
       onClick={onClick}

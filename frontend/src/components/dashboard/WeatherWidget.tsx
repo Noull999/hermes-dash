@@ -89,37 +89,42 @@ export default function WeatherWidget() {
 
   return (
     <Card padding="sm">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">{emoji}</span>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-[var(--text)]">
-                {Math.round(current.temperature_2m)}°C
-              </span>
-              <span className="text-xs text-[var(--text-muted)]">
-                Sensación {Math.round(current.apparent_temperature)}°C
-              </span>
-            </div>
-            <div className="flex items-center gap-3 mt-0.5">
-              <span className="text-[10px] text-[var(--text-muted)] flex items-center gap-1">
-                <MapPin size={10} />
-                Puerto Montt
-              </span>
-              <span className="text-[10px] text-[var(--text-muted)] flex items-center gap-1">
-                <Droplets size={10} />
-                {current.relative_humidity_2m}%
-              </span>
-              <span className="text-[10px] text-[var(--text-muted)] flex items-center gap-1">
-                <Wind size={10} />
-                {Math.round(current.wind_speed_10m)} km/h
-              </span>
+      <div className="flex items-center justify-between mb-2.5">
+        <div className="flex items-center gap-1.5">
+          <MapPin size={11} className="text-[var(--cyan)]" />
+          <span className="hud-label text-[9px]">PUERTO&nbsp;MONTT · CL</span>
+        </div>
+        <button onClick={fetchWeather} className="p-1 hover:bg-[rgba(79,227,255,0.08)] transition-colors">
+          <RefreshCw size={11} className="text-[var(--text-muted)]" />
+        </button>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <span className="text-3xl leading-none">{emoji}</span>
+        <div className="flex items-baseline gap-2">
+          <span className="hud-readout text-3xl font-bold glow-text leading-none">
+            {Math.round(current.temperature_2m)}°
+          </span>
+          <span className="hud-label text-[9px]">
+            SENS&nbsp;{Math.round(current.apparent_temperature)}°
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2 mt-3">
+        {[
+          { Icon: Thermometer, label: 'TEMP', val: `${Math.round(current.temperature_2m)}°C` },
+          { Icon: Droplets, label: 'HUM', val: `${current.relative_humidity_2m}%` },
+          { Icon: Wind, label: 'VIENTO', val: `${Math.round(current.wind_speed_10m)}km/h` },
+        ].map(({ Icon, label, val }) => (
+          <div key={label} className="flex items-center gap-1.5 border-l border-[var(--hairline)] pl-2">
+            <Icon size={11} className="text-[var(--text-faint)]" />
+            <div className="leading-tight">
+              <div className="hud-label text-[7px]">{label}</div>
+              <div className="hud-readout text-[11px] text-[var(--text)]">{val}</div>
             </div>
           </div>
-        </div>
-        <button onClick={fetchWeather} className="p-1 rounded-lg hover:bg-[rgba(255,255,255,0.06)] transition-colors">
-          <RefreshCw size={12} className="text-[var(--text-muted)]" />
-        </button>
+        ))}
       </div>
     </Card>
   );

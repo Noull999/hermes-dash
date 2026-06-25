@@ -9,22 +9,23 @@ interface BadgeProps {
   dot?: boolean;
 }
 
+// Angular HUD chips: hairline border + low-alpha fill, mono uppercase text.
 const variants = {
-  default: 'bg-[rgba(255,255,255,0.06)] text-[var(--text-muted)]',
-  success: 'bg-[rgba(34,197,94,0.12)] text-[var(--success)]',
-  warning: 'bg-[rgba(234,179,8,0.12)] text-[var(--warning)]',
-  error: 'bg-[rgba(239,68,68,0.12)] text-[var(--error)]',
-  accent: 'bg-[rgba(0,212,255,0.12)] text-[var(--accent)]',
-  purple: 'bg-[rgba(139,92,246,0.12)] text-[var(--purple)]',
+  default: 'border-[var(--hairline)] bg-[rgba(79,227,255,0.04)] text-[var(--text-muted)]',
+  success: 'border-[rgba(93,255,176,0.3)] bg-[rgba(93,255,176,0.08)] text-[var(--success)]',
+  warning: 'border-[rgba(255,177,61,0.3)] bg-[rgba(255,177,61,0.08)] text-[var(--amber)]',
+  error: 'border-[rgba(255,93,108,0.3)] bg-[rgba(255,93,108,0.08)] text-[var(--error)]',
+  accent: 'border-[var(--hairline-strong)] bg-[rgba(79,227,255,0.08)] text-[var(--cyan)]',
+  purple: 'border-[rgba(255,177,61,0.3)] bg-[rgba(255,177,61,0.08)] text-[var(--amber)]',
 };
 
 const dotColors = {
   default: 'bg-[var(--text-muted)]',
-  success: 'bg-[var(--success)]',
-  warning: 'bg-[var(--warning)]',
-  error: 'bg-[var(--error)]',
-  accent: 'bg-[var(--accent)]',
-  purple: 'bg-[var(--purple)]',
+  success: 'bg-[var(--success)] shadow-[0_0_6px_var(--success)]',
+  warning: 'bg-[var(--amber)] shadow-[0_0_6px_var(--amber)]',
+  error: 'bg-[var(--error)] shadow-[0_0_6px_var(--error)]',
+  accent: 'bg-[var(--cyan)] shadow-[0_0_6px_var(--cyan)]',
+  purple: 'bg-[var(--amber)] shadow-[0_0_6px_var(--amber)]',
 };
 
 export default function Badge({
@@ -36,16 +37,12 @@ export default function Badge({
   return (
     <span
       className={classNames(
-        'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium',
+        'inline-flex items-center gap-1.5 px-2.5 h-6 border rounded-[2px] text-[10px] font-medium tracking-[0.12em] uppercase font-mono',
         variants[variant],
         className
       )}
     >
-      {dot && (
-        <span
-          className={classNames('w-1.5 h-1.5 rounded-full', dotColors[variant])}
-        />
-      )}
+      {dot && <span className={classNames('w-1.5 h-1.5 rounded-full', dotColors[variant])} />}
       {children}
     </span>
   );

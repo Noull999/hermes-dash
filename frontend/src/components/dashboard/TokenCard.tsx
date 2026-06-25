@@ -1,7 +1,6 @@
 'use client';
 
 import Card from '@/components/ui/Card';
-import ProgressBar from '@/components/ui/ProgressBar';
 import { useHermesStore } from '@/store/useHermesStore';
 import { Coins, RefreshCw, TrendingUp, Layers } from 'lucide-react';
 import { useEffect } from 'react';
@@ -17,7 +16,7 @@ export default function TokenCard() {
     return (
       <Card>
         <div className="space-y-3">
-          <div className="skeleton h-5 w-32" />
+          <div className="skeleton h-4 w-32" />
           <div className="skeleton h-8 w-full" />
           <div className="skeleton h-4 w-24" />
         </div>
@@ -29,9 +28,9 @@ export default function TokenCard() {
     return (
       <Card>
         <div className="flex items-center justify-between">
-          <span className="text-sm text-[var(--error)]">Error: {tokensError}</span>
-          <button onClick={fetchTokens} className="p-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.06)]">
-            <RefreshCw size={14} className="text-[var(--accent)]" />
+          <span className="hud-label text-[var(--error)]">ERR · {tokensError}</span>
+          <button onClick={fetchTokens} className="p-1.5 border border-[var(--hairline)] hover:border-[var(--hairline-strong)]">
+            <RefreshCw size={13} className="text-[var(--cyan)]" />
           </button>
         </div>
       </Card>
@@ -47,79 +46,71 @@ export default function TokenCard() {
 
   return (
     <Card>
+      {/* header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Coins size={16} className="text-[var(--accent)]" />
-          <h3 className="text-sm font-semibold text-[var(--text)]">Tokens</h3>
+          <Coins size={14} className="text-[var(--cyan)]" />
+          <h3 className="hud-label text-[10px] text-[var(--text)]">TOKEN&nbsp;USAGE</h3>
         </div>
-        <button onClick={fetchTokens} className="p-1 rounded-lg hover:bg-[rgba(255,255,255,0.06)] transition-colors">
+        <button onClick={fetchTokens} className="p-1 hover:bg-[rgba(79,227,255,0.08)] transition-colors">
           <RefreshCw size={12} className="text-[var(--text-muted)]" />
         </button>
       </div>
 
-      {/* Stacked bar */}
-      <div className="h-8 rounded-xl overflow-hidden flex mb-3">
+      {/* stacked telemetry bar */}
+      <div className="relative h-7 border border-[var(--hairline)] overflow-hidden flex mb-1 bg-[rgba(79,227,255,0.03)]">
         <div
           className="h-full transition-all duration-700"
           style={{
             width: `${newPct}%`,
-            background: 'linear-gradient(90deg, var(--accent), var(--accent2))',
+            background: 'linear-gradient(90deg, var(--cyan-deep), var(--cyan))',
+            boxShadow: '0 0 14px rgba(79,227,255,0.5)',
           }}
         />
         <div
           className="h-full transition-all duration-700"
-          style={{
-            width: `${100 - newPct}%`,
-            background: 'rgba(0, 212, 255, 0.15)',
-          }}
+          style={{ width: `${100 - newPct}%`, background: 'rgba(79,227,255,0.12)' }}
         />
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 hud-readout text-[10px] text-[var(--cyan-bright)]">
+          {newPct.toFixed(1)}%
+        </span>
+      </div>
+      <div className="flex justify-between mb-3 hud-label text-[8px]">
+        <span>NUEVOS</span>
+        <span>CACHEADOS</span>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-3">
-        <div>
-          <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] mb-1">
-            <TrendingUp size={10} />
-            <span>New</span>
+      {/* stats */}
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        {[
+          { Icon: TrendingUp, label: 'NEW', value: tokens.total_new, glow: true },
+          { Icon: Layers, label: 'CACHE', value: tokens.total_cached, glow: false },
+          { Icon: Coins, label: 'GROSS', value: tokens.total_gross, glow: false },
+        ].map(({ Icon, label, value, glow }) => (
+          <div key={label} className="border border-[var(--hairline)] px-2 py-2 bg-[rgba(79,227,255,0.02)]">
+            <div className="flex items-center gap-1 mb-1">
+              <Icon size={9} className="text-[var(--text-faint)]" />
+              <span className="hud-label text-[8px]">{label}</span>
+            </div>
+            <span className={`hud-readout text-sm font-bold ${glow ? 'glow-text' : 'text-[var(--text)]'}`}>
+              {value.toLocaleString()}
+            </span>
           </div>
-          <span className="text-sm font-bold text-[var(--accent)]">
-            {tokens.total_new.toLocaleString()}
-          </span>
-        </div>
-        <div>
-          <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] mb-1">
-            <Layers size={10} />
-            <span>Cached</span>
-          </div>
-          <span className="text-sm font-bold text-[var(--text)]">
-            {tokens.total_cached.toLocaleString()}
-          </span>
-        </div>
-        <div>
-          <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] mb-1">
-            <Coins size={10} />
-            <span>Gross</span>
-          </div>
-          <span className="text-sm font-bold text-[var(--text)]">
-            {tokens.total_gross.toLocaleString()}
-          </span>
-        </div>
+        ))}
       </div>
 
-      {/* Per-project breakdown */}
+      {/* per-project */}
       {projectNames.length > 0 && (
-        <div className="space-y-2 pt-2 border-t border-[rgba(255,255,255,0.06)]">
-          <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-medium">
-            Por proyecto
-          </span>
+        <div className="space-y-1.5 pt-2.5 border-t border-[var(--hairline)]">
+          <div className="hud-divider"><span className="hud-label text-[8px]">POR&nbsp;PROYECTO</span></div>
           {projectNames.map((name) => {
             const p = projects[name];
             const pTotal = (p.new_tokens || 0) + (p.cached_tokens || 0);
             return (
               <div key={name} className="flex items-center justify-between text-xs">
-                <span className="text-[var(--text)] truncate max-w-[140px]">{name}</span>
-                <span className="text-[var(--text-muted)]">
-                  <span className="text-[var(--accent)]">{p.new_tokens?.toLocaleString() || 0}</span>
+                <span className="text-[var(--text-muted)] truncate max-w-[150px] font-mono text-[11px]">{name}</span>
+                <span className="hud-readout text-[11px] text-[var(--text-muted)]">
+                  <span className="text-[var(--cyan)]">{p.new_tokens?.toLocaleString() || 0}</span>
                   {' / '}
                   {pTotal.toLocaleString()}
                 </span>

@@ -3,93 +3,126 @@
 import ClientLayout from '@/components/ui/ClientLayout';
 import OrbCanvas from '@/components/orb/OrbCanvas';
 import Card from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
 import WeatherWidget from '@/components/dashboard/WeatherWidget';
 import TokenCard from '@/components/dashboard/TokenCard';
 import SystemCard from '@/components/dashboard/SystemCard';
 import { useHermesStore } from '@/store/useHermesStore';
 import { getTimeOfDay } from '@/lib/utils';
-import { MessageSquare, Sparkles, Code2, ArrowRight } from 'lucide-react';
+import { MessageSquare, BarChart3, Code2, Brain, ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
+
+const STATE_LABEL: Record<string, string> = {
+  idle: 'STANDBY',
+  processing: 'PROCESANDO',
+  success: 'COMPLETADO',
+  error: 'ALERTA',
+};
+
+const QUICK = [
+  { href: '/chat', label: 'CHAT', Icon: MessageSquare },
+  { href: '/dashboard', label: 'PANEL', Icon: BarChart3 },
+  { href: '/repos', label: 'REPOS', Icon: Code2 },
+];
 
 export default function HomePage() {
   const orbState = useHermesStore((s) => s.orbState);
   const health = useHermesStore((s) => s.health);
   const greeting = getTimeOfDay();
+  const online = health?.status === 'ok';
 
   return (
     <ClientLayout>
-      <div className="space-y-4">
-        {/* Orb Section */}
-        <div className="relative h-[260px] -mx-4 -mt-4 mb-2 overflow-hidden">
+      <div className="space-y-3">
+        {/* ── Orb command hero ──────────────────────────────────── */}
+        <div className="relative h-[300px] -mx-4 -mt-4 overflow-hidden border-b border-[var(--hairline)]">
           <OrbCanvas />
 
-          {/* Overlay content */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
-            <h1 className="text-2xl font-bold text-[var(--text)] mb-1">
-              {greeting}, José
-            </h1>
-            <p className="text-sm text-[var(--text-muted)] mb-4">
-              Bienvenido a tu dashboard inteligente
-            </p>
-            <div className="flex items-center gap-2">
-              <Badge
-                variant={orbState === 'error' ? 'error' : orbState === 'success' ? 'success' : 'accent'}
-                dot
+          {/* targeting reticle around the orb */}
+          <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center pointer-events-none">
+            <div className="reticle w-[230px] h-[230px] rounded-full border border-[var(--hairline)]" />
+          </div>
+          <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center pointer-events-none">
+            <div className="reticle-rev w-[186px] h-[186px] rounded-full border border-dashed border-[rgba(79,227,255,0.18)]" />
+          </div>
+
+          {/* corner telemetry */}
+          <div className="absolute top-3 left-3 hud-label text-[8px] text-[var(--text-faint)]">
+            SYS.HERMES//v2
+          </div>
+          <div className="absolute top-3 right-3 hud-label text-[8px] text-[var(--text-faint)]">
+            PTO.MONTT · CL
+          </div>
+
+          {/* legibility scrim */}
+          <div className="absolute top-0 left-0 w-full h-full pointer-events-none bg-gradient-to-t from-[var(--void)] via-transparent to-transparent" />
+
+          {/* overlay status — flex justify-end pins to bottom */}
+          <div className="absolute top-0 left-0 w-full h-full flex flex-col justify-end items-center px-5 pb-4 text-center">
+            <div className="hud-label text-[9px] mb-1">{greeting}</div>
+            <h1 className="text-2xl font-bold tracking-[0.18em] text-[var(--text)] glow-text">JOSÉ</h1>
+            <div className="mt-2 flex items-center justify-center gap-2">
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 h-6 border rounded-[2px] text-[10px] font-mono tracking-[0.14em] ${
+                  orbState === 'error'
+                    ? 'border-[rgba(255,93,108,0.3)] text-[var(--error)]'
+                    : orbState === 'success'
+                    ? 'border-[rgba(93,255,176,0.3)] text-[var(--success)]'
+                    : 'border-[var(--hairline-strong)] text-[var(--cyan)]'
+                }`}
               >
-                {orbState === 'idle' ? 'Listo' : orbState === 'processing' ? 'Procesando...' : orbState === 'success' ? 'Completado' : 'Error'}
-              </Badge>
-              {health && (
-                <Badge variant={health.status === 'ok' ? 'success' : 'error'} dot>
-                  API {health.status}
-                </Badge>
-              )}
+                <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                {STATE_LABEL[orbState] || 'STANDBY'}
+              </span>
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 h-6 border rounded-[2px] text-[10px] font-mono tracking-[0.14em] ${
+                  online ? 'border-[rgba(93,255,176,0.3)] text-[var(--success)]' : 'border-[rgba(255,93,108,0.3)] text-[var(--error)]'
+                }`}
+              >
+                API {online ? 'OK' : 'ERR'}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Quick actions */}
+        {/* ── Quick actions ─────────────────────────────────────── */}
         <div className="grid grid-cols-3 gap-2">
-          <Link href="/chat" className="glass p-3 rounded-xl hover:border-[rgba(255,255,255,0.12)] transition-all text-center">
-            <div className="w-9 h-9 rounded-xl bg-[rgba(0,212,255,0.1)] flex items-center justify-center mx-auto mb-1.5">
-              <MessageSquare size={18} className="text-[var(--accent)]" />
-            </div>
-            <span className="text-xs font-medium text-[var(--text)]">Chat</span>
-          </Link>
-          <Link href="/dashboard" className="glass p-3 rounded-xl hover:border-[rgba(255,255,255,0.12)] transition-all text-center">
-            <div className="w-9 h-9 rounded-xl bg-[rgba(139,92,246,0.1)] flex items-center justify-center mx-auto mb-1.5">
-              <Sparkles size={18} className="text-[var(--purple)]" />
-            </div>
-            <span className="text-xs font-medium text-[var(--text)]">Analytics</span>
-          </Link>
-          <Link href="/repos" className="glass p-3 rounded-xl hover:border-[rgba(255,255,255,0.12)] transition-all text-center">
-            <div className="w-9 h-9 rounded-xl bg-[rgba(34,197,94,0.1)] flex items-center justify-center mx-auto mb-1.5">
-              <Code2 size={18} className="text-[var(--success)]" />
-            </div>
-            <span className="text-xs font-medium text-[var(--text)]">Repos</span>
-          </Link>
+          {QUICK.map(({ href, label, Icon }, i) => (
+            <Link
+              key={href}
+              href={href}
+              className="glass boot-in flex flex-col items-center gap-2 py-3.5 hover:-translate-y-0.5"
+              style={{ animationDelay: `${i * 60}ms` }}
+            >
+              <Icon size={18} className="text-[var(--cyan)] drop-shadow-[0_0_6px_var(--cyan)]" />
+              <span className="hud-label text-[9px]">{label}</span>
+            </Link>
+          ))}
         </div>
 
-        {/* Weather & Tokens */}
-        <WeatherWidget />
-        <TokenCard />
+        {/* ── Modules ───────────────────────────────────────────── */}
+        <div className="boot-in" style={{ animationDelay: '120ms' }}>
+          <WeatherWidget />
+        </div>
+        <div className="boot-in" style={{ animationDelay: '160ms' }}>
+          <TokenCard />
+        </div>
+        <div className="boot-in" style={{ animationDelay: '200ms' }}>
+          <SystemCard />
+        </div>
 
-        {/* System summary */}
-        <SystemCard />
-
-        {/* Quick link to brain */}
-        <Link href="/brain">
+        {/* ── Second brain link ─────────────────────────────────── */}
+        <Link href="/brain" className="block boot-in" style={{ animationDelay: '240ms' }}>
           <Card hover className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[rgba(139,92,246,0.1)] flex items-center justify-center">
-                <Sparkles size={18} className="text-[var(--purple)]" />
+              <div className="w-9 h-9 rounded-[3px] border border-[rgba(255,177,61,0.25)] bg-[rgba(255,177,61,0.07)] flex items-center justify-center">
+                <Brain size={16} className="text-[var(--amber)]" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-[var(--text)]">Second Brain</h3>
-                <p className="text-[10px] text-[var(--text-muted)]">Tus notas, ideas y snippets</p>
+                <h3 className="text-sm font-semibold tracking-wide text-[var(--text)]">SECOND BRAIN</h3>
+                <p className="hud-label text-[8px] mt-0.5">NOTAS · IDEAS · SNIPPETS</p>
               </div>
             </div>
-            <ArrowRight size={16} className="text-[var(--text-muted)]" />
+            <ArrowUpRight size={16} className="text-[var(--text-muted)]" />
           </Card>
         </Link>
       </div>

@@ -1,9 +1,26 @@
 import type { Metadata, Viewport } from 'next';
+import { Chakra_Petch, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 
+// Display: technical squared HUD face (JARVIS readouts)
+const display = Chakra_Petch({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-display',
+  display: 'swap',
+});
+
+// Data: terminal mono for numbers, labels, telemetry
+const mono = JetBrains_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '700'],
+  variable: '--font-mono',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
-  title: 'Hermes Dashboard',
-  description: 'Hermes Agent v2 — Dashboard',
+  title: 'HERMES // Command HUD',
+  description: 'Hermes Agent — holographic command interface',
   manifest: '/api/manifest',
   appleWebApp: {
     capable: true,
@@ -16,7 +33,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  themeColor: '#00d4ff',
+  themeColor: '#04060a',
 };
 
 export default function RootLayout({
@@ -25,22 +42,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es">
+    <html lang="es" className={`${display.variable} ${mono.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
-        <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body className="antialiased">
-        <div id="app-root">
-          {children}
-        </div>
+      <body>
+        {/* Global HUD backdrop layers */}
+        <div className="hud-bg" aria-hidden />
+        <div className="hud-grid" aria-hidden />
+        <div className="hud-lines" aria-hidden />
+        <div className="hud-scan" aria-hidden />
+
+        <div id="app-root">{children}</div>
       </body>
     </html>
   );
