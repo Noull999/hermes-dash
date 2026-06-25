@@ -60,8 +60,8 @@ export default function ChatView() {
 
         {isTyping && (
           <div className="flex gap-3 fade-in">
-            <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-[rgba(139,92,246,0.15)] flex items-center justify-center">
-              <MessageSquare size={14} className="text-[var(--purple)]" />
+            <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-[rgba(139,92,246,0.15)] flex items-center justify-center overflow-hidden">
+              <img src="/hermes-avatar.svg" alt="Hermes" className="w-6 h-6" />
             </div>
             <div className="bg-[var(--card)] border border-[rgba(255,255,255,0.06)] rounded-2xl px-4 py-3">
               <div className="flex gap-1">
