@@ -26,7 +26,8 @@ export default function EmailPage() {
     setLoading(true);
     setError(null);
     try {
-      const query = q ? `in:inbox ${q}` : 'in:inbox';
+      // Default to Gmail's Primary tab (real/important mail, no promos/social).
+      const query = q ? `in:inbox ${q}` : 'in:inbox category:primary';
       const data = await getEmails(query, 20);
       setEmails(data.emails);
       setTotal(data.total);
