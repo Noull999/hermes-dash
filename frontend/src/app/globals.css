@@ -34,9 +34,9 @@
   --purple: #ffb13d; /* legacy alias remapped off the SaaS purple */
 
   /* Text */
-  --text: #d6ecf5;
-  --text-muted: #6f8a99;
-  --text-faint: #3d5663;
+  --text: #dceef7;
+  --text-muted: #8aa6b5;
+  --text-faint: #5e7d8c;
 
   /* Signals */
   --success: #5dffb0;

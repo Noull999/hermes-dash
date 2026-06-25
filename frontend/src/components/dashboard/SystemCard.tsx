@@ -1,11 +1,17 @@
 'use client';
 
 import Card from '@/components/ui/Card';
-import ProgressBar from '@/components/ui/ProgressBar';
-import Badge from '@/components/ui/Badge';
 import { useHermesStore } from '@/store/useHermesStore';
-import { Cpu, Database, HardDrive, Clock, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { Cpu, Database, HardDrive, Clock, RefreshCw } from 'lucide-react';
 import { useEffect } from 'react';
+
+function formatUptime(seconds: number): string {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  if (d > 0) return `${d}d ${h}h`;
+  const m = Math.floor((seconds % 3600) / 60);
+  return `${h}h ${m}m`;
+}
 
 export default function SystemCard() {
   const { system, systemLoading, systemError, fetchSystem } = useHermesStore();
@@ -18,11 +24,9 @@ export default function SystemCard() {
     return (
       <Card>
         <div className="space-y-3">
-          <div className="skeleton h-5 w-28" />
-          <div className="grid grid-cols-2 gap-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="skeleton h-16" />
-            ))}
+          <div className="skeleton h-4 w-28" />
+          <div className="grid grid-cols-2 gap-2">
+            {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton h-14" />)}
           </div>
         </div>
       </Card>
@@ -33,9 +37,9 @@ export default function SystemCard() {
     return (
       <Card>
         <div className="flex items-center justify-between">
-          <span className="text-sm text-[var(--error)]">Error: {systemError}</span>
-          <button onClick={fetchSystem} className="p-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.06)]">
-            <RefreshCw size={14} className="text-[var(--accent)]" />
+          <span className="hud-label text-[var(--error)]">ERR · {systemError}</span>
+          <button onClick={fetchSystem} className="p-1.5 border border-[var(--hairline)] hover:border-[var(--hairline-strong)]">
+            <RefreshCw size={13} className="text-[var(--cyan)]" />
           </button>
         </div>
       </Card>
@@ -44,85 +48,66 @@ export default function SystemCard() {
 
   if (!system) return null;
 
-  const days = Math.floor(system.uptime_hours / 24);
-  const hours = Math.floor(system.uptime_hours % 24);
+  const online = system.gateway === 'online';
+  const metrics = [
+    { Icon: Cpu, label: 'CPU', val: system.cpu_pct, unit: '%', warn: 85 },
+    { Icon: Database, label: 'RAM', val: system.ram_pct, unit: '%', warn: 85 },
+    { Icon: HardDrive, label: 'DISCO', val: system.disk_pct, unit: '%', warn: 85 },
+  ];
 
   return (
     <Card>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Cpu size={16} className="text-[var(--purple)]" />
-          <h3 className="text-sm font-semibold text-[var(--text)]">Sistema</h3>
+          <Cpu size={14} className="text-[var(--cyan)]" />
+          <h3 className="hud-label text-[10px] text-[var(--text)]">SISTEMA · VPS</h3>
         </div>
         <div className="flex items-center gap-2">
-          <Badge
-            variant={system.gateway_status === 'online' ? 'success' : 'error'}
-            dot
-          >
-            {system.gateway_status}
-          </Badge>
-          <button onClick={fetchSystem} className="p-1 rounded-lg hover:bg-[rgba(255,255,255,0.06)] transition-colors">
+          <span className="inline-flex items-center gap-1.5 px-2 h-5 border rounded-[2px] text-[9px] font-mono tracking-[0.14em]"
+            style={{
+              borderColor: online ? 'rgba(93,255,176,0.3)' : 'rgba(255,93,108,0.3)',
+              color: online ? 'var(--success)' : 'var(--error)',
+            }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-current" />
+            {online ? 'ONLINE' : 'OFFLINE'}
+          </span>
+          <button onClick={fetchSystem} className="p-1 hover:bg-[rgba(79,227,255,0.08)] transition-colors">
             <RefreshCw size={12} className="text-[var(--text-muted)]" />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        {/* CPU */}
-        <div className="p-3 rounded-xl bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.04)]">
-          <div className="flex items-center gap-1.5 mb-2">
-            <Cpu size={12} className="text-[var(--accent)]" />
-            <span className="text-[10px] text-[var(--text-muted)] uppercase">CPU</span>
-          </div>
-          <span className="text-lg font-bold text-[var(--text)]">{system.cpu_percent}%</span>
-          <ProgressBar value={system.cpu_percent} className="mt-1" height={3} />
-        </div>
+      <div className="grid grid-cols-2 gap-2">
+        {metrics.map(({ Icon, label, val, unit, warn }) => {
+          const over = val > warn;
+          const color = over ? 'var(--error)' : 'var(--cyan)';
+          return (
+            <div key={label} className="border border-[var(--hairline)] px-2.5 py-2 bg-[rgba(79,227,255,0.02)]">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Icon size={11} className="text-[var(--text-faint)]" />
+                <span className="hud-label text-[8px]">{label}</span>
+              </div>
+              <span className="hud-readout text-base font-bold text-[var(--text)]">
+                {val.toFixed(0)}<span className="text-[var(--text-muted)] text-xs">{unit}</span>
+              </span>
+              <div className="mt-1.5 h-[3px] bg-[rgba(79,227,255,0.08)] overflow-hidden">
+                <div className="h-full transition-all duration-700"
+                  style={{ width: `${Math.min(val, 100)}%`, background: color, boxShadow: `0 0 6px ${color}` }} />
+              </div>
+            </div>
+          );
+        })}
 
-        {/* RAM */}
-        <div className="p-3 rounded-xl bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.04)]">
-          <div className="flex items-center gap-1.5 mb-2">
-            <Database size={12} className="text-[var(--purple)]" />
-            <span className="text-[10px] text-[var(--text-muted)] uppercase">RAM</span>
+        {/* uptime */}
+        <div className="border border-[var(--hairline)] px-2.5 py-2 bg-[rgba(79,227,255,0.02)]">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <Clock size={11} className="text-[var(--text-faint)]" />
+            <span className="hud-label text-[8px]">UPTIME</span>
           </div>
-          <span className="text-lg font-bold text-[var(--text)]">{system.memory_percent}%</span>
-          <span className="text-[10px] text-[var(--text-muted)] ml-1">
-            {system.memory_used_gb?.toFixed(1)}/{system.memory_total_gb?.toFixed(0)} GB
+          <span className="hud-readout text-base font-bold text-[var(--text)]">
+            {formatUptime(system.uptime)}
           </span>
-          <ProgressBar value={system.memory_percent} className="mt-1" height={3} color="var(--purple)" />
-        </div>
-
-        {/* Disk */}
-        <div className="p-3 rounded-xl bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.04)]">
-          <div className="flex items-center gap-1.5 mb-2">
-            <HardDrive size={12} className="text-[var(--success)]" />
-            <span className="text-[10px] text-[var(--text-muted)] uppercase">Disco</span>
-          </div>
-          <span className="text-lg font-bold text-[var(--text)]">{system.disk_percent}%</span>
-          <ProgressBar
-            value={system.disk_percent}
-            className="mt-1"
-            height={3}
-            color={system.disk_percent > 85 ? 'var(--error)' : 'var(--success)'}
-          />
-        </div>
-
-        {/* Uptime */}
-        <div className="p-3 rounded-xl bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.04)]">
-          <div className="flex items-center gap-1.5 mb-2">
-            <Clock size={12} className="text-[var(--warning)]" />
-            <span className="text-[10px] text-[var(--text-muted)] uppercase">Uptime</span>
-          </div>
-          <span className="text-lg font-bold text-[var(--text)]">
-            {days > 0 ? `${days}d ` : ''}{hours}h
-          </span>
-          <div className="flex items-center gap-1 mt-1">
-            {system.gateway_status === 'online' ? (
-              <Wifi size={10} className="text-[var(--success)]" />
-            ) : (
-              <WifiOff size={10} className="text-[var(--error)]" />
-            )}
-            <span className="text-[10px] text-[var(--text-muted)]">Gateway</span>
-          </div>
+          <div className="hud-label text-[7px] mt-1.5">GATEWAY</div>
         </div>
       </div>
     </Card>

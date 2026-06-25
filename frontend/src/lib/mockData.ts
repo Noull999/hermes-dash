@@ -15,41 +15,50 @@ import type {
 
 // ── Tokens ────────────────────────────────────────────────────────────────
 export const mockTokenData: TokenData = {
-  total_new: 125_000,
-  total_cached: 340_000,
-  total_gross: 465_000,
-  projects: {
-    'hermes-core': { new_tokens: 45_000, cached_tokens: 120_000, description: 'Core LLM router' },
-    'dash-frontend': { new_tokens: 30_000, cached_tokens: 80_000, description: 'Dashboard SPA' },
-    'agent-worker': { new_tokens: 50_000, cached_tokens: 140_000, description: 'Background agent pool' },
+  session: {
+    calls: 42,
+    new_total_tokens: 125_000,
+    completion_tokens: 18_000,
+    new_prompt_tokens: 107_000,
+    gross_prompt_tokens: 447_000,
+    gross_total_tokens: 465_000,
+    cached_tokens: 340_000,
+    cache_pct: 76,
+    limit: 1_000_000,
+    remaining_tokens: 875_000,
+    remaining_hours: 3.8,
+    next_reset: '2026-06-25T22:00:00Z',
+  },
+  categories: {
+    'hermes-conversacion': { calls: 20, new_tokens: 45_000, cached_tokens: 120_000, total_tokens: 165_000, models: ['deepseek-v4-flash'] },
+    'code-review-bot': { calls: 12, new_tokens: 30_000, cached_tokens: 80_000, total_tokens: 110_000, models: ['kimi-k2.7-code'] },
+    'claude-code': { calls: 10, new_tokens: 50_000, cached_tokens: 140_000, total_tokens: 190_000, models: ['claude-sonnet-4-6'] },
   },
 };
 
 // ── System ────────────────────────────────────────────────────────────────
 export const mockSystemData: SystemData = {
-  gateway_status: 'healthy',
-  cpu_percent: 34.2,
-  memory_percent: 62.8,
-  memory_used_gb: 8.1,
-  memory_total_gb: 16,
-  disk_percent: 44.5,
-  uptime_hours: 312,
+  gateway: 'online',
+  uptime: 1_123_200, // ~13 days in seconds
+  cpu_pct: 34.2,
+  ram_pct: 62.8,
+  disk_pct: 44.5,
 };
 
 // ── Repos ─────────────────────────────────────────────────────────────────
 export const mockRepoData: RepoData[] = [
-  { name: 'hermes-core', branch: 'main', commits_behind: 0, dirty: false, sync_status: 'synced', last_commit: 'abc123', last_commit_time: '2025-06-24T14:30:00Z' },
-  { name: 'dash-frontend', branch: 'develop', commits_behind: 2, dirty: true, sync_status: 'behind', last_commit: 'def456', last_commit_time: '2025-06-24T10:15:00Z' },
-  { name: 'agent-worker', branch: 'main', commits_behind: 0, dirty: false, sync_status: 'synced', last_commit: 'ghi789', last_commit_time: '2025-06-23T22:00:00Z' },
+  { name: 'hermes-dash', branch: 'main', vps_commit: 'abc1234', vps_message: 'Add dashboard API routes', dirty: false, status: 'synced', behind: 0, ahead: 0 },
+  { name: 'Jarvis', branch: 'main', vps_commit: 'def4567', vps_message: 'Merge savings dashboard', dirty: true, status: 'behind', behind: 2, ahead: 0 },
+  { name: 'multi-agentes', branch: 'main', vps_commit: 'ghi7890', vps_message: 'Fix LLM prefix', dirty: false, status: 'synced', behind: 0, ahead: 0 },
 ];
 
 // ── Timeline ──────────────────────────────────────────────────────────────
 export const mockTimelineEvents: TimelineEvent[] = [
-  { id: 'evt-1', type: 'commit', title: 'fix: resolve token refresh race', description: 'Prevent concurrent refresh calls', timestamp: '2025-06-25T09:00:00Z', repo: 'hermes-core' },
-  { id: 'evt-2', type: 'deploy', title: 'Deploy v2.4.1 to staging', timestamp: '2025-06-25T08:00:00Z', repo: 'dash-frontend' },
-  { id: 'evt-3', type: 'chat', title: 'User asked about email integration', description: 'Clarified scope for Fase 3', timestamp: '2025-06-24T20:00:00Z' },
-  { id: 'evt-4', type: 'system', title: 'Weekly backup completed', description: '36 GB written to S3', timestamp: '2025-06-24T03:00:00Z' },
-  { id: 'evt-5', type: 'note', title: 'Planning: Calendar sync architecture', timestamp: '2025-06-23T16:30:00Z' },
+  { timestamp: '2026-06-25T09:00:00Z', type: 'commit', message: 'fix: resolve token refresh race', project: 'hermes-core' },
+  { timestamp: '2026-06-25T08:00:00Z', type: 'action', message: 'Deploy v2.4.1 to staging', project: 'dash-frontend' },
+  { timestamp: '2026-06-24T20:00:00Z', type: 'chat', message: 'User asked about email integration' },
+  { timestamp: '2026-06-24T03:00:00Z', type: 'system', message: 'Weekly backup completed', project: 'cron' },
+  { timestamp: '2026-06-23T16:30:00Z', type: 'info', message: 'Planning: Calendar sync architecture' },
 ];
 
 // ── Brain ─────────────────────────────────────────────────────────────────

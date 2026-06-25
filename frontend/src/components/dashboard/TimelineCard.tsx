@@ -1,7 +1,6 @@
 'use client';
 
 import Card from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
 import { useHermesStore } from '@/store/useHermesStore';
 import { GitCommit, Rocket, StickyNote, Server, MessageSquare, RefreshCw, Clock } from 'lucide-react';
 import { useEffect } from 'react';
@@ -13,14 +12,18 @@ const eventIcons: Record<string, React.ReactNode> = {
   note: <StickyNote size={14} />,
   system: <Server size={14} />,
   chat: <MessageSquare size={14} />,
+  action: <Rocket size={14} />,
+  info: <Server size={14} />,
 };
 
 const eventColors: Record<string, string> = {
-  commit: 'var(--accent)',
+  commit: 'var(--cyan)',
   deploy: 'var(--success)',
-  note: 'var(--purple)',
-  system: 'var(--warning)',
+  note: 'var(--amber)',
+  system: 'var(--amber)',
   chat: 'var(--text-muted)',
+  action: 'var(--cyan)',
+  info: 'var(--text-muted)',
 };
 
 export default function TimelineCard() {
@@ -80,35 +83,31 @@ export default function TimelineCard() {
             No hay eventos recientes
           </p>
         ) : (
-          timeline.slice(0, 15).map((event) => (
+          timeline.slice(0, 15).map((event, i) => (
             <div
-              key={event.id}
-              className="flex gap-3 py-2.5 border-b border-[rgba(255,255,255,0.04)] last:border-0 fade-in"
+              key={`${event.timestamp}-${i}`}
+              className="flex gap-3 py-2.5 border-b border-[var(--hairline)] last:border-0 fade-in"
             >
               <div
-                className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+                className="flex-shrink-0 w-7 h-7 rounded-[3px] flex items-center justify-center border"
                 style={{
-                  background: `${eventColors[event.type] || 'var(--text-muted)'}15`,
+                  borderColor: 'var(--hairline)',
+                  background: `${eventColors[event.type] || 'var(--text-muted)'}12`,
                   color: eventColors[event.type] || 'var(--text-muted)',
                 }}
               >
-                {eventIcons[event.type] || <Clock size={14} />}
+                {eventIcons[event.type] || <Clock size={13} />}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--text)] truncate">
-                  {event.title}
+                <p className="text-[13px] text-[var(--text)] truncate">
+                  {event.message}
                 </p>
-                {event.description && (
-                  <p className="text-xs text-[var(--text-muted)] mt-0.5 line-clamp-2">
-                    {event.description}
-                  </p>
-                )}
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[10px] text-[var(--text-muted)]">
+                  <span className="hud-readout text-[10px] text-[var(--text-muted)]">
                     {formatRelativeTime(event.timestamp)}
                   </span>
-                  {event.repo && (
-                    <Badge variant="default">{event.repo}</Badge>
+                  {event.project && (
+                    <span className="hud-label text-[8px]">{event.project}</span>
                   )}
                 </div>
               </div>

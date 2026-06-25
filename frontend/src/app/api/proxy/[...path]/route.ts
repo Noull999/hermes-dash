@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-const AUTH_TOKEN = 'dev-token';
+// Server-side only — the token never reaches the browser.
+// BACKEND_URL defaults to the VPS public IP (token-protected port).
+const API_BASE = process.env.BACKEND_URL || 'http://95.217.7.149:8080';
+const AUTH_TOKEN = process.env.API_TOKEN || '';
+
+function backendUrl(path: string[], search: string): string {
+  // /api/proxy/api/tokens  -> path = ['api','tokens'] -> /api/tokens
+  const endpoint = '/' + path.join('/');
+  return `${API_BASE}${endpoint}${search ? `?${search}` : ''}`;
+}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await params;
-  const endpoint = `/api/${path.join('/')}`;
-  const searchParams = request.nextUrl.searchParams.toString();
-  const url = `${API_BASE}${endpoint}${searchParams ? `?${searchParams}` : ''}`;
+  const url = backendUrl(path, request.nextUrl.searchParams.toString());
 
   try {
     const res = await fetch(url, {
@@ -19,7 +25,6 @@ export async function GET(
         'Content-Type': 'application/json',
       },
     });
-
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch (err) {
@@ -35,8 +40,7 @@ export async function POST(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await params;
-  const endpoint = `/api/${path.join('/')}`;
-  const url = `${API_BASE}${endpoint}`;
+  const url = backendUrl(path, request.nextUrl.searchParams.toString());
   let body: string | undefined;
   try {
     body = await request.text();
@@ -53,7 +57,6 @@ export async function POST(
       },
       body,
     });
-
     const text = await res.text();
     const data = text ? JSON.parse(text) : null;
     return NextResponse.json(data, { status: res.status });
@@ -70,21 +73,14 @@ export async function DELETE(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await params;
-  const endpoint = `/api/${path.join('/')}`;
-  const searchParams = request.nextUrl.searchParams.toString();
-  const url = `${API_BASE}${endpoint}${searchParams ? `?${searchParams}` : ''}`;
+  const url = backendUrl(path, request.nextUrl.searchParams.toString());
 
   try {
     const res = await fetch(url, {
       method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${AUTH_TOKEN}`,
-      },
+      headers: { Authorization: `Bearer ${AUTH_TOKEN}` },
     });
-
-    if (res.status === 204) {
-      return new NextResponse(null, { status: 204 });
-    }
+    if (res.status === 204) return new NextResponse(null, { status: 204 });
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch (err) {

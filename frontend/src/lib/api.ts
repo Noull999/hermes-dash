@@ -1,5 +1,7 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-const AUTH_TOKEN = 'dev-token';
+// All requests go through the same-origin server-side proxy
+// (/api/proxy/...). The proxy injects the auth token server-side, so the
+// token never reaches the browser and there is no CORS/mixed-content issue.
+const API_BASE = '/api/proxy';
 
 async function request<T>(
   endpoint: string,
@@ -7,7 +9,6 @@ async function request<T>(
 ): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
   const headers: Record<string, string> = {
-    'Authorization': `Bearer ${AUTH_TOKEN}`,
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {}),
   };
@@ -31,56 +32,76 @@ export async function getHealth() {
   return request<{ status: string; uptime: number }>('/api/health');
 }
 
-// Tokens
+// Tokens — matches backend /api/tokens { session, categories }
+export interface TokenSession {
+  calls: number;
+  new_total_tokens: number;
+  completion_tokens: number;
+  new_prompt_tokens: number;
+  gross_prompt_tokens: number;
+  gross_total_tokens: number;
+  cached_tokens: number;
+  cache_pct: number;
+  limit: number;
+  remaining_tokens: number;
+  remaining_hours: number;
+  next_reset: string;
+}
+
+export interface TokenCategory {
+  calls: number;
+  new_tokens: number;
+  cached_tokens: number;
+  total_tokens: number;
+  models: string[];
+}
+
 export interface TokenData {
-  total_new: number;
-  total_cached: number;
-  total_gross: number;
-  projects: Record<string, { new_tokens: number; cached_tokens: number; description?: string }>;
+  session: TokenSession;
+  categories: Record<string, TokenCategory>;
 }
 
 export async function getTokens() {
   return request<TokenData>('/api/tokens');
 }
 
-// System
+// System — matches backend /api/system
 export interface SystemData {
-  gateway_status: string;
-  cpu_percent: number;
-  memory_percent: number;
-  memory_used_gb: number;
-  memory_total_gb: number;
-  disk_percent: number;
-  uptime_hours: number;
+  gateway: string;
+  uptime: number; // seconds
+  cpu_pct: number;
+  ram_pct: number;
+  disk_pct: number;
 }
 
 export async function getSystem() {
   return request<SystemData>('/api/system');
 }
 
-// Repos
+// Repos — matches backend /api/repos
+export type RepoSyncStatus = 'synced' | 'behind' | 'ahead' | 'unknown' | string;
+
 export interface RepoData {
   name: string;
   branch: string;
-  commits_behind: number;
+  vps_commit: string;
+  vps_message: string;
   dirty: boolean;
-  sync_status: 'synced' | 'behind' | 'ahead' | 'error';
-  last_commit?: string;
-  last_commit_time?: string;
+  status: RepoSyncStatus;
+  behind: number;
+  ahead: number;
 }
 
 export async function getRepos() {
   return request<RepoData[]>('/api/repos');
 }
 
-// Timeline
+// Timeline — matches backend /api/timeline
 export interface TimelineEvent {
-  id: string;
-  type: 'commit' | 'deploy' | 'note' | 'system' | 'chat';
-  title: string;
-  description?: string;
   timestamp: string;
-  repo?: string;
+  type: string;
+  message: string;
+  project?: string;
 }
 
 export async function getTimeline() {
