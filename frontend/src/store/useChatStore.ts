@@ -65,21 +65,35 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setConnected: (connected) => set({ isConnected: connected }),
 
   connect: () => {
+    // Acumulador de chunks streaming
+    let streamingBuffer = '';
+
     const unsubMessage = wsClient.onMessage((data: unknown) => {
       const msg = data as Record<string, unknown>;
       const { addMessage, setTyping } = get();
 
-      if (msg.type === 'response' || msg.type === 'message') {
+      if (msg.type === 'chunk' && typeof msg.content === 'string') {
+        // Acumular chunks del streaming
+        streamingBuffer += msg.content;
+        setTyping(true);
+      } else if (msg.type === 'done' && typeof msg.content === 'string') {
+        setTyping(false);
+        if (msg.content) {
+          addMessage({ role: 'assistant', content: msg.content });
+        }
+        streamingBuffer = '';
+      } else if (msg.type === 'response' || msg.type === 'message') {
         setTyping(false);
         addMessage({
           role: 'assistant',
           content: (msg.content as string) || '',
         });
-      } else if (msg.type === 'typing') {
-        setTyping(true);
       } else if (msg.type === 'raw' && typeof msg.content === 'string') {
         setTyping(false);
         addMessage({ role: 'assistant', content: msg.content as string });
+      } else if (msg.type === 'error' && typeof msg.content === 'string') {
+        setTyping(false);
+        addMessage({ role: 'system', content: msg.content as string });
       }
     });
 
