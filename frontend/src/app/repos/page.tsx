@@ -6,7 +6,7 @@ import RepoCard from '@/components/repos/RepoCard';
 import ClaudeLauncher from '@/components/repos/ClaudeLauncher';
 import Card from '@/components/ui/Card';
 import { GitBranch, AlertCircle } from 'lucide-react';
-import { api } from '@/lib/api';
+import { getRepos } from '@/lib/api';
 
 interface Repo {
   name: string;
@@ -33,7 +33,7 @@ export default function ReposPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getRepos();
+      const data = await getRepos();
       setRepos(data);
     } catch (e: any) {
       setError(e?.message || 'Error al cargar repos');

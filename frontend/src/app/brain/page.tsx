@@ -38,14 +38,16 @@ export default function BrainPage() {
 
       {showNote && (
         <AddNoteModal
+          open={true}
           onClose={() => setShowNote(false)}
-          onSaved={() => { setShowNote(false); setRefreshKey(k => k + 1); }}
+          onCreated={() => { setShowNote(false); setRefreshKey(k => k + 1); }}
         />
       )}
       {showReminder && (
         <AddReminderModal
+          open={true}
           onClose={() => setShowReminder(false)}
-          onSaved={() => { setShowReminder(false); setRefreshKey(k => k + 1); }}
+          onCreated={() => { setShowReminder(false); setRefreshKey(k => k + 1); }}
         />
       )}
     </ClientLayout>

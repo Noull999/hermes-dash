@@ -4,7 +4,7 @@ import Card from '@/components/ui/Card';
 import ProgressBar from '@/components/ui/ProgressBar';
 import Badge from '@/components/ui/Badge';
 import { useHermesStore } from '@/store/useHermesStore';
-import { Cpu, Memory, HardDrive, Clock, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { Cpu, Database, HardDrive, Clock, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { useEffect } from 'react';
 
 export default function SystemCard() {
@@ -81,7 +81,7 @@ export default function SystemCard() {
         {/* RAM */}
         <div className="p-3 rounded-xl bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.04)]">
           <div className="flex items-center gap-1.5 mb-2">
-            <Memory size={12} className="text-[var(--purple)]" />
+            <Database size={12} className="text-[var(--purple)]" />
             <span className="text-[10px] text-[var(--text-muted)] uppercase">RAM</span>
           </div>
           <span className="text-lg font-bold text-[var(--text)]">{system.memory_percent}%</span>
