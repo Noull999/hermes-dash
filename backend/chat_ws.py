@@ -77,6 +77,53 @@ async def _add_to_history(session_id: str, msg: dict) -> None:
         _histories.setdefault(session_id, []).append(msg)
 
 
+# ── Filtro de thinking para deepseek ────────────────────────────────
+# deepseek-v4-flash en opencode mete todo el razonamiento en
+# reasoning_content. Esta funcion extrae solo la respuesta final.
+
+
+def _strip_thinking(text: str) -> str:
+    """Elimina el proceso de razonamiento de deepseek-v4-flash."""
+    if not text or len(text) < 80:
+        return text
+
+    # Estrategia: buscar el ultimo saludo/pregunta en espanol, desde ahi es respuesta
+    import re
+    greeting = re.compile(
+        r"(¡?[Hh]ola|¿Qué tal|¿Cómo|"
+        r"¡?[Bb]uenos días|¡?[Bb]uenas|"
+        r"Hey|Qué hay|¿En qué|Dime|Cuéntame|"
+        r"Bueno|Mira|Oye|Oiga)"
+    )
+    matches = list(greeting.finditer(text))
+    if matches:
+        last = matches[-1]
+        start = last.start()
+        after = text[start:].strip()
+        if len(after) > 3:
+            return after
+
+    # Fallback: tomar la ultima linea que no parece pensamiento
+    thinking_phrases = [
+        "el usuario", "debo", "necesito", "la instruccion",
+        "i think", "i should", "i need", "just thinking",
+        "let me", "the user", "the person", "asimismo",
+        "asi que", "por ejemplo", "vamos:", "quizas",
+        "output debe ser", "i'll answer",
+    ]
+    lines = [l.strip() for l in text.replace("\r", "").split("\n") if l.strip()]
+    for i in range(len(lines) - 1, -1, -1):
+        line = lines[i]
+        if not line:
+            continue
+        line_lower = line.lower()
+        is_thinking = any(p in line_lower for p in thinking_phrases)
+        if not is_thinking and len(line) > 3:
+            return "\n".join(lines[i:])
+
+    return text
+
+
 # ── WebSocket endpoint ──────────────────────────────────────────────────
 
 @router.websocket("/api/chat")
@@ -126,15 +173,28 @@ async def chat_websocket(ws: WebSocket):
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                     })
 
-            # Enviar finish señal
+            # ── Limpiar thinking del deepseek ────────────────────────
+            clean = _strip_thinking(full_content) if full_content else ""
+
+            # Si el thinking filtrado dio un resultado distinto, avisar al frontend
+            if clean != full_content and clean:
+                # Enviar version limpia como actualizacion
+                await ws.send_json({
+                    "type": "thinking_removed",
+                    "content": clean,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+
+            # Enviar finish señal con contenido limpio
+            final_content = clean or full_content
             await ws.send_json({
                 "type": "done",
-                "content": full_content,
+                "content": final_content,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
 
-            # Guardar en historial
-            history.append({"role": "assistant", "content": full_content})
+            # Guardar en historial (la version limpia)
+            history.append({"role": "assistant", "content": final_content})
 
             # ── Token tracking ───────────────────────────────────────
             if _HAS_TRACKER:

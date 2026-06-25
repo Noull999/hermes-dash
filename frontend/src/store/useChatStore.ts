@@ -67,21 +67,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
   connect: () => {
     // Acumulador de chunks streaming
     let streamingBuffer = '';
+    let lastMessageId: string | null = null;
 
     const unsubMessage = wsClient.onMessage((data: unknown) => {
       const msg = data as Record<string, unknown>;
-      const { addMessage, setTyping } = get();
+      const { addMessage, setTyping, messages } = get();
 
       if (msg.type === 'chunk' && typeof msg.content === 'string') {
         // Acumular chunks del streaming
         streamingBuffer += msg.content;
         setTyping(true);
+      } else if (msg.type === 'thinking_removed' && typeof msg.content === 'string') {
+        // Thinking filtrado, actualizar buffer con version limpia
+        streamingBuffer = msg.content;
       } else if (msg.type === 'done' && typeof msg.content === 'string') {
         setTyping(false);
-        if (msg.content) {
-          addMessage({ role: 'assistant', content: msg.content });
+        const content = msg.content || streamingBuffer;
+        if (content) {
+          addMessage({ role: 'assistant', content });
         }
         streamingBuffer = '';
+        lastMessageId = null;
       } else if (msg.type === 'response' || msg.type === 'message') {
         setTyping(false);
         addMessage({
