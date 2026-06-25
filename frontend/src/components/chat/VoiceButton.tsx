@@ -4,13 +4,48 @@ import { useState, useRef, useEffect, startTransition } from 'react';
 import { Mic } from 'lucide-react';
 import { classNames } from '@/lib/utils';
 
+// Type declarations for Web Speech API
+declare const SpeechRecognition: new () => SpeechRecognitionInstance;
+
+interface SpeechRecognitionInstance extends EventTarget {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  start(): void;
+  stop(): void;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+}
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
+}
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
+interface SpeechRecognitionResultList {
+  length: number;
+  [index: number]: SpeechRecognitionResult;
+  item(index: number): SpeechRecognitionResult;
+}
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  [index: number]: SpeechRecognitionAlternative;
+}
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
+
 interface VoiceButtonProps {
   onResult: (text: string) => void;
 }
 
 export default function VoiceButton({ onResult }: VoiceButtonProps) {
   const [listening, setListening] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const [supported, setSupported] = useState(true);
 
   useEffect(() => {
