@@ -4,7 +4,7 @@ import { classNames } from '@/lib/utils';
 
 interface BadgeProps {
   variant?: 'default' | 'success' | 'warning' | 'error' | 'accent' | 'purple';
-  children: string;
+  children: React.ReactNode;
   className?: string;
   dot?: boolean;
 }
