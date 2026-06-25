@@ -150,3 +150,125 @@ export async function runClaude(payload: ClaudePayload) {
     body: JSON.stringify(payload),
   });
 }
+
+// ── Email ─────────────────────────────────────────────────────────────────
+export interface EmailData {
+  id: string;
+  from: string;
+  subject: string;
+  date: string;
+  snippet: string;
+  labelIds: string[];
+}
+
+export interface EmailResponse {
+  emails: EmailData[];
+  total: number;
+  error?: string;
+}
+
+export async function getEmails(q = 'in:inbox', maxResults = 10) {
+  const params = new URLSearchParams({ q, max_results: String(maxResults) });
+  return request<EmailResponse>(`/api/email?${params}`);
+}
+
+// ── Calendar ──────────────────────────────────────────────────────────────
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  location: string;
+}
+
+export interface CalendarResponse {
+  events: CalendarEvent[];
+  total: number;
+  error?: string;
+}
+
+export async function getCalendarEvents(days = 7) {
+  return request<CalendarResponse>(`/api/calendar?days=${days}`);
+}
+
+// ── Jobs ──────────────────────────────────────────────────────────────────
+export interface JobInfo {
+  source: string;
+  id: string;
+  name: string;
+  schedule: string;
+  status: string;
+  substatus?: string;
+}
+
+export interface RunEntry {
+  time: string;
+  event: string;
+}
+
+export interface JobsResponse {
+  jobs: JobInfo[];
+  recent_runs: RunEntry[];
+}
+
+export async function getJobs() {
+  return request<JobsResponse>('/api/jobs');
+}
+
+// ── Push ──────────────────────────────────────────────────────────────────
+export interface PushSubscriptionsResponse {
+  subscriptions: unknown[];
+  total: number;
+}
+
+export async function getPushSubscriptions() {
+  return request<PushSubscriptionsResponse>('/api/push/subscriptions');
+}
+
+export async function subscribePush() {
+  return request<{ status: string; total: number }>('/api/push/subscribe', {
+    method: 'POST',
+  });
+}
+
+// ── Gamification ──────────────────────────────────────────────────────────
+export interface AchievementInfo {
+  id: string;
+  name: string;
+  icon: string;
+  desc: string;
+}
+
+export interface GamificationData {
+  level: number;
+  xp: number;
+  xp_next: number;
+  unlocked: AchievementInfo[];
+  locked: AchievementInfo[];
+  new_achievements: AchievementInfo[];
+  stats: Record<string, number>;
+}
+
+export interface GamificationTrackPayload {
+  action: string;
+  value: number;
+}
+
+export interface GamificationTrackResponse {
+  xp: number;
+  level: number;
+  new_achievements: AchievementInfo[];
+}
+
+export async function getGamification() {
+  return request<GamificationData>('/api/gamification');
+}
+
+export async function trackGamification(payload: GamificationTrackPayload) {
+  return request<GamificationTrackResponse>('/api/gamification/track', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
