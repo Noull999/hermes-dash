@@ -2,9 +2,5 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
-  "installCommand": "npm install",
-  "env": {
-    "API_TOKEN": "dev-token",
-    "VPS_URL": "http://95.217.7.149:8080"
-  }
+  "installCommand": "npm install"
 }
