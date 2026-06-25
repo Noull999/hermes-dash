@@ -1,7 +1,7 @@
 'use client';
 
 import Card from '@/components/ui/Card';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, startTransition } from 'react';
 import { CloudSun, RefreshCw, Thermometer, Droplets, Wind, MapPin } from 'lucide-react';
 
 interface WeatherData {
@@ -47,8 +47,8 @@ export default function WeatherWidget() {
   };
 
   useEffect(() => {
-    fetchWeather();
-    const interval = setInterval(fetchWeather, 600000); // 10 min
+    startTransition(() => { fetchWeather(); });
+    const interval = setInterval(() => startTransition(() => { fetchWeather(); }), 600000);
     return () => clearInterval(interval);
   }, []);
 

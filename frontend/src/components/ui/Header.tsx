@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, startTransition } from 'react';
 import { Zap, TrendingUp } from 'lucide-react';
 import { getStreakDays, updateStreak } from '@/lib/utils';
 
@@ -9,7 +9,7 @@ export default function Header() {
   const [streak, setStreak] = useState(0);
 
   useEffect(() => {
-    setStreak(updateStreak());
+    startTransition(() => setStreak(updateStreak()));
     const updateTime = () => {
       const now = new Date();
       setTime(

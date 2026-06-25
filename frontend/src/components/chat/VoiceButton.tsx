@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, startTransition } from 'react';
 import { Mic } from 'lucide-react';
 import { classNames } from '@/lib/utils';
 
@@ -18,7 +18,7 @@ export default function VoiceButton({ onResult }: VoiceButtonProps) {
       (window as unknown as Record<string, unknown>).SpeechRecognition ||
       (window as unknown as Record<string, unknown>).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      setSupported(false);
+      startTransition(() => setSupported(false));
       return;
     }
 

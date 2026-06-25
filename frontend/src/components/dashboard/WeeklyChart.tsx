@@ -1,7 +1,7 @@
 'use client';
 
 import Card from '@/components/ui/Card';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, startTransition } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Tooltip, Filler } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import { BarChart3 } from 'lucide-react';
@@ -20,7 +20,7 @@ export default function WeeklyChart() {
     const days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
     const newTokens = days.map(() => Math.floor(Math.random() * 8000 + 2000));
     const cachedTokens = days.map(() => Math.floor(Math.random() * 12000 + 3000));
-    setChartData({ labels: days, newTokens, cachedTokens });
+    startTransition(() => setChartData({ labels: days, newTokens, cachedTokens }));
   }, []);
 
   if (!chartData) {

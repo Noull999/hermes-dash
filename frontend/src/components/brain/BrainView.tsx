@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, startTransition } from 'react';
 import NoteCard from './NoteCard';
 import AddNoteModal from './AddNoteModal';
 import { getBrain, deleteBrain, BrainItem } from '@/lib/api';
@@ -28,7 +28,7 @@ export default function BrainView() {
   };
 
   useEffect(() => {
-    fetchNotes();
+    startTransition(() => { fetchNotes(); });
   }, []);
 
   const handleDelete = async (id: string) => {

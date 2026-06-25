@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, startTransition } from 'react';
 import Modal from '@/components/ui/Modal';
 import { createReminder } from '@/lib/api';
 import { Loader2, Plus, Calendar, Clock } from 'lucide-react';
@@ -22,7 +22,7 @@ export default function AddReminderModal({ open, onClose, onCreated }: AddRemind
       // Set default to 1 hour from now
       const d = new Date();
       d.setHours(d.getHours() + 1);
-      setDatetime(d.toISOString().slice(0, 16));
+      startTransition(() => setDatetime(d.toISOString().slice(0, 16)));
     }
   }, [open]);
 

@@ -1,32 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, startTransition } from 'react';
 import ClientLayout from '@/components/ui/ClientLayout';
 import RepoCard from '@/components/repos/RepoCard';
-import ClaudeLauncher from '@/components/repos/ClaudeLauncher';
 import Card from '@/components/ui/Card';
 import { GitBranch, AlertCircle } from 'lucide-react';
-import { getRepos } from '@/lib/api';
-
-interface Repo {
-  name: string;
-  branch: string;
-  vps_commit: string;
-  vps_message: string;
-  dirty: boolean;
-  status: string;
-  behind: number;
-  ahead: number;
-}
+import { getRepos, RepoData } from '@/lib/api';
 
 export default function ReposPage() {
-  const [repos, setRepos] = useState<Repo[]>([]);
+  const [repos, setRepos] = useState<RepoData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [claudeTarget, setClaudeTarget] = useState<string | null>(null);
 
   useEffect(() => {
-    loadRepos();
+    startTransition(() => { loadRepos(); });
   }, []);
 
   async function loadRepos() {
@@ -35,8 +22,8 @@ export default function ReposPage() {
     try {
       const data = await getRepos();
       setRepos(data);
-    } catch (e: any) {
-      setError(e?.message || 'Error al cargar repos');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error al cargar repos');
     } finally {
       setLoading(false);
     }
@@ -81,17 +68,10 @@ export default function ReposPage() {
 
         {repos.map(repo => (
           <div key={repo.name} className="relative">
-            <RepoCard repo={repo} onClaude={() => setClaudeTarget(repo.name)} />
+            <RepoCard repo={repo} />
           </div>
         ))}
       </div>
-
-      {claudeTarget && (
-        <ClaudeLauncher
-          repo={claudeTarget}
-          onClose={() => setClaudeTarget(null)}
-        />
-      )}
     </ClientLayout>
   );
 }

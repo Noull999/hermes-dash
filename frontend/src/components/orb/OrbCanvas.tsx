@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useMemo, useState } from 'react';
+import { useRef, useEffect, useMemo, useState, startTransition } from 'react';
 import { useHermesStore } from '@/store/useHermesStore';
 
 // Simple Three.js orb with particles - no imports, pure canvas fallback
@@ -21,7 +21,7 @@ function Orb3DCanvas() {
     // Check WebGL support
     const testCanvas = document.createElement('canvas');
     const gl = testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl');
-    if (!gl) setWebglSupported(false);
+    if (!gl) startTransition(() => setWebglSupported(false));
   }, []);
 
   useEffect(() => {
@@ -252,9 +252,9 @@ export default function OrbCanvas() {
     try {
       const c = document.createElement('canvas');
       const gl = c.getContext('webgl') || c.getContext('experimental-webgl');
-      if (!gl) setWebglOk(false);
+      if (!gl) startTransition(() => setWebglOk(false));
     } catch {
-      setWebglOk(false);
+      startTransition(() => setWebglOk(false));
     }
   }, []);
 
