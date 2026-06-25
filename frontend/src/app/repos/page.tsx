@@ -33,36 +33,41 @@ export default function ReposPage() {
     <ClientLayout>
       <div className="p-4 pb-24 max-w-4xl mx-auto space-y-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-white/90">Repos</h1>
+          <div>
+            <h1 className="text-xl font-bold hud-label tracking-widest text-[var(--cyan)]">REPOSITORIOS</h1>
+            <p className="hud-readout text-[10px] text-[var(--text-faint)] mt-0.5">CONTROL DE VERSIONES / VPS</p>
+          </div>
           <button
             onClick={loadRepos}
-            className="text-xs text-cyan-400 hover:text-cyan-300 transition"
+            disabled={loading}
+            className="hud-label text-[10px] text-[var(--cyan)] hover:text-[var(--text)] transition disabled:opacity-40 flex items-center gap-1"
           >
-            ↻ Actualizar
+            <GitBranch className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            SYNC
           </button>
         </div>
 
         {loading && (
           <div className="space-y-3">
             {[1,2,3].map(i => (
-              <div key={i} className="h-24 bg-white/5 rounded-xl animate-pulse" />
+              <div key={i} className="h-24 skeleton rounded" />
             ))}
           </div>
         )}
 
         {error && (
-          <Card className="p-4 border-red-500/30">
+          <Card className="p-4 border border-red-500/30">
             <div className="flex items-center gap-2 text-red-400">
               <AlertCircle className="w-5 h-5" />
-              <span>{error}</span>
+              <span className="text-sm">{error}</span>
             </div>
           </Card>
         )}
 
         {!loading && !error && repos.length === 0 && (
           <Card className="p-8 text-center">
-            <GitBranch className="w-12 h-12 text-white/20 mx-auto mb-3" />
-            <p className="text-white/50">No se encontraron repositorios.</p>
+            <GitBranch className="w-10 h-10 text-[var(--text-faint)] mx-auto mb-3" />
+            <p className="hud-label text-[10px] text-[var(--text-muted)]">SIN REPOSITORIOS DETECTADOS</p>
           </Card>
         )}
 
