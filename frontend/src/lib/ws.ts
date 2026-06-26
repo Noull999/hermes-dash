@@ -142,7 +142,7 @@ class WebSocketClient {
     }, RECONNECT_DELAY * Math.min(this.reconnectAttempts, 5));
   }
 
-  private notifyStatus(status: 'connected' | 'disconnected' | 'reconnecting') {
+  private notifyStatus(status: 'connected' | 'disconnected' | 'reconnecting' | 'timeout') {
     this.statusHandlers.forEach((h) => h(status));
   }
 }
