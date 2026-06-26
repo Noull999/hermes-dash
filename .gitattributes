@@ -1,0 +1,4 @@
+# Los scripts y units que corren en el VPS (Linux) deben tener saltos LF,
+# aunque se editen desde Windows. Evita "bad interpreter: /usr/bin/env^M".
+*.sh        text eol=lf
+*.service   text eol=lf

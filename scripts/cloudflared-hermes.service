@@ -1,0 +1,15 @@
+[Unit]
+Description=Hermes Cloudflare quick tunnel + Vercel auto-update
+After=network-online.target hermes-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Secretos (VERCEL_TOKEN, DEPLOY_HOOK) — gitignored
+EnvironmentFile=/root/hermes-dash/scripts/tunnel.env
+ExecStart=/usr/bin/env bash /root/hermes-dash/scripts/hermes-tunnel.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
