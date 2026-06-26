@@ -52,6 +52,7 @@ export default function HomePage() {
   const health = useHermesStore((s) => s.health);
   const greeting = getTimeOfDay();
   const online = health?.status === 'ok';
+  const healthLoaded = health !== null;
 
   // ── Voice ──
   const [micActive, setMicActive] = useState(false);
@@ -206,12 +207,15 @@ export default function HomePage() {
               <span
                 className={classNames(
                   'inline-flex items-center gap-1 px-2 h-5 border rounded-[2px] text-[9px] font-mono tracking-[0.14em]',
-                  online
+                  !healthLoaded
+                    ? 'border-[var(--hairline-strong)] text-[var(--text-muted)]'
+                    : online
                     ? 'border-[rgba(93,255,176,0.3)] text-[var(--success)]'
                     : 'border-[rgba(255,93,108,0.3)] text-[var(--error)]',
                 )}
               >
-                API {online ? 'OK' : 'ERR'}
+                <span className="w-1 h-1 rounded-full bg-current" />
+                {!healthLoaded ? '---' : online ? 'API OK' : 'API ERR'}
               </span>
             </div>
           </div>

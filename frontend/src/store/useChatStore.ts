@@ -39,7 +39,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   isConnected: false,
   isTyping: false,
-  connectionStatus: 'disconnected',
+  connectionStatus: 'connecting', // arranca conectando, el useEffect llama connect() altiro
 
   addMessage: (msg) => {
     const newMsg: ChatMessage = {
