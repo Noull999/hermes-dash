@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import OrbCanvas from '@/components/orb/OrbCanvas';
@@ -81,12 +81,12 @@ export default function HomePage() {
     return () => el.removeEventListener('scroll', handler);
   }, []);
 
-  // Voice → auto-send
-  const handleVoiceResult = (text: string) => {
+  // Voice → auto-send (estable con useCallback)
+  const handleVoiceResult = useCallback((text: string) => {
     if (text.trim()) {
       sendMessage(text.trim());
     }
-  };
+  }, [sendMessage]);
 
   const orbHeight = orbCompact ? 'h-0 overflow-hidden' : 'h-[200px]';
 
