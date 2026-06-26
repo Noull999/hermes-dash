@@ -83,7 +83,7 @@ export default function TimelineCard() {
             No hay eventos recientes
           </p>
         ) : (
-          timeline.slice(0, 15).map((event, i) => (
+          timeline.slice(0, 10).map((event, i) => (
             <div
               key={`${event.timestamp}-${i}`}
               className="flex gap-3 py-2.5 border-b border-[var(--hairline)] last:border-0 fade-in"
