@@ -116,6 +116,23 @@ export default function CalendarView({ events, loading }: CalendarViewProps) {
                       <span className="truncate">{ev.location}</span>
                     </div>
                   )}
+
+                  {/* reminders */}
+                  {ev.reminders && !ev.reminders.useDefault && ev.reminders.overrides.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {ev.reminders.overrides.map((r, i) => {
+                        let label = '';
+                        if (r.minutes >= 1440) label = `${r.minutes / 1440}d antes`;
+                        else if (r.minutes >= 60) label = `${r.minutes / 60}h antes`;
+                        else label = `${r.minutes}min antes`;
+                        return (
+                          <span key={i} className="hud-label text-[9px] px-1.5 py-0.5 border border-[var(--hairline-strong)] text-[var(--text-faint)]">
+                            🔔 {label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
                 </Card>
               ))}
             </div>

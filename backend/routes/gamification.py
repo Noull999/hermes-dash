@@ -120,8 +120,10 @@ async def get_gamification():
 
 
 @router.post("/api/gamification/track")
-async def track_action(action: str, value: int = 1):
+async def track_action(payload: dict):  # Accept JSON body {"action": "...", "value": 1}
     """Track a user action (chat message, repo run, etc.) for XP."""
+    action = payload.get("action", "")
+    value = payload.get("value", 1)
     p = _load_progress()
     today = date.today().isoformat()
 

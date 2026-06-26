@@ -11,8 +11,33 @@ import re
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from openai import AsyncOpenAI
+
+# ── Session persistence ──────────────────────────────────────────────
+from routes.sessions import append_message, auto_title_session
+
+# ── Push notification helper ─────────────────────────────────────────
+async def _send_chat_push(session_id: str, preview: str):
+    """Send a push notification for a new chat response."""
+    try:
+        from routes.push import _load_subs, _send_push
+        subs = _load_subs()
+        if not subs:
+            return
+        title = "💬 Hermes respondió"
+        body = (preview or "")[:120]
+        if len(preview or "") > 120:
+            body += "…"
+        import asyncio
+        for sub in subs:
+            await asyncio.to_thread(
+                _send_push, sub,
+                {"title": title, "body": body, "icon": "/icon-192.png",
+                 "tag": f"hermes-chat-{session_id}", "data": {"url": "/"}}
+            )
+    except Exception:
+        pass
 
 # ── Token tracker ───────────────────────────────────────────────────
 _SCRIPTS_DIR = Path.home() / ".hermes" / "scripts"
@@ -56,7 +81,7 @@ def _load_env() -> dict:
 _env = _load_env()
 _API_KEY = _env.get("API_SERVER_KEY") or os.environ.get("API_SERVER_KEY", "")
 _BASE_URL = "http://localhost:8642/v1"
-_MODEL = _env.get("OPENER_MODEL") or "deepseek-v4-flash"
+_MODEL = _env.get("OPENER_MODEL") or "hermes-agent"
 _SYSTEM_PROMPT = ""  # El gateway usa su propio system prompt del agente Hermes
 
 # ── Calendar intent detection patterns ──────────────────────────────────
@@ -64,10 +89,9 @@ _CALENDAR_PATTERNS = [
     r"\bagenda\b",
     r"\bprograma\b",
     r"\bcalendariza\b",
-    r"\bpon(?:e|me|le|)\b.*\b(?:reunion|evento|cita|recordatorio)\b",
+    r"\bpon(?:e|me|le|)\b.*\b(?:reunion|evento|cita)\b",
     r"\bagrega\b.*\b(?:al|el)\s+calendario\b",
     r"\bcrea\b.*\b(?:evento|reunion|cita)\b",
-    r"\brecord(?:ar|atorio|ame)\b",
     r"\breunion\b.*\b(?:manana|hoy|proximo|proxima|el\s+\d)",
     r"\bquiero\b.*\b(?:agendar|programar)\b",
     r"\breserva\b",
@@ -75,8 +99,16 @@ _CALENDAR_PATTERNS = [
     r"\bset\b.*\b(?:meeting|appointment|event)\b",
 ]
 
+# ── Reminder intent detection patterns (crea reminder en el sistema del dashboard)
+_REMINDER_PATTERNS = [
+    r"\brecord(?:ar|atorio|ame)\b",
+    r"\bcrea\b.*\b(?:recordatorio|alerta|aviso)\b",
+    r"\bpon(?:me|le)?\b.*\b(?:recordatorio|alerta)\b",
+]
+
 # Compiled patterns
 _CALENDAR_RE = [re.compile(p, re.IGNORECASE) for p in _CALENDAR_PATTERNS]
+_REMINDER_RE = [re.compile(p, re.IGNORECASE) for p in _REMINDER_PATTERNS]
 
 # ── Calendar extraction prompt ──────────────────────────────────────────
 _CALENDAR_EXTRACT_PROMPT = """Eres un extractor de eventos de calendario. Del mensaje del usuario, extrae:
@@ -98,6 +130,24 @@ def _is_calendar_intent(text: str) -> bool:
     if not text or len(text) < 5:
         return False
     return any(p.search(text) for p in _CALENDAR_RE)
+
+
+def _is_reminder_intent(text: str) -> bool:
+    """Detecta si el mensaje es una solicitud de crear recordatorio."""
+    if not text or len(text) < 5:
+        return False
+    return any(p.search(text) for p in _REMINDER_RE)
+
+
+_REMINDER_EXTRACT_PROMPT = """Eres un extractor de recordatorios. Del mensaje del usuario, extrae:
+- text: texto del recordatorio (obligatorio)
+- datetime: fecha/hora en ISO 8601 con timezone America/Santiago (obligatorio)
+- project: nombre del proyecto asociado (opcional, default "general")
+
+Si no se especifica hora exacta, asume las 12:00 PM Chile.
+Si no se especifica fecha, asume mañana a las 12:00 PM Chile.
+
+Responde SOLO con un JSON válido, nada más."""
 
 
 async def _parse_event_with_llm(text: str) -> dict | None:
@@ -185,6 +235,71 @@ async def _create_calendar_event(event_data: dict) -> str:
         return f"⚠️ Error al crear el evento: {str(e)}"
 
 
+_REMINDERS_FILE = Path.home() / ".hermes" / "reminders.json"
+
+
+async def _parse_reminder_with_llm(text: str) -> dict | None:
+    """Usa el LLM para extraer datos del recordatorio del mensaje."""
+    client = AsyncOpenAI(api_key=_API_KEY, base_url=_BASE_URL)
+    try:
+        resp = await client.chat.completions.create(
+            model=_MODEL,
+            messages=[
+                {"role": "system", "content": _REMINDER_EXTRACT_PROMPT},
+                {"role": "user", "content": text},
+            ],
+            temperature=0.1,
+            max_tokens=500,
+        )
+        raw = resp.choices[0].message.content or ""
+        content = raw.strip()
+        if content.startswith("```"):
+            content = content.split("\n", 1)[-1]
+            content = content.rsplit("```", 1)[0]
+        return json.loads(content.strip())
+    except Exception as e:
+        print(f"[chat_ws] Error parsing reminder intent: {e}")
+        return None
+
+
+def _save_reminder(data: dict) -> dict:
+    """Guarda un recordatorio en reminders.json."""
+    _REMINDERS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    reminders = []
+    if _REMINDERS_FILE.exists():
+        try:
+            reminders = json.loads(_REMINDERS_FILE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, Exception):
+            reminders = []
+
+    new_id = 1
+    if reminders:
+        new_id = max(r.get("id", 0) for r in reminders) + 1
+
+    reminder = {
+        "id": new_id,
+        "text": data["text"],
+        "datetime": data["datetime"],
+        "project": data.get("project", "general"),
+        "completed": False,
+        "created": datetime.now(timezone.utc).isoformat(),
+    }
+    reminders.append(reminder)
+    _REMINDERS_FILE.write_text(json.dumps(reminders, indent=2, ensure_ascii=False), encoding="utf-8")
+    return reminder
+
+
+async def _create_reminder_entry(reminder_data: dict) -> str:
+    """Crea un recordatorio en el sistema del dashboard."""
+    try:
+        reminder = _save_reminder(reminder_data)
+        dt = reminder.get("datetime", "")
+        text = reminder.get("text", "Recordatorio")
+        return f"✅ **Recordatorio creado:** \"{text}\" para el {dt}"
+    except Exception as e:
+        return f"⚠️ Error al crear recordatorio: {str(e)}"
+
+
 # ── Cliente OpenAI (compartido) ─────────────────────────────────────────
 _client = None
 
@@ -260,10 +375,42 @@ def _strip_thinking(text: str) -> str:
 # ── WebSocket endpoint ──────────────────────────────────────────────────
 
 @router.websocket("/api/chat")
-async def chat_websocket(ws: WebSocket):
+async def chat_websocket(ws: WebSocket, session_id: str = Query("")):
     await ws.accept()
 
-    session_id = f"ws_{id(ws)}"
+    # ── Session resolution ──────────────────────────────────────────
+    if not session_id:
+        # Create a new session via REST endpoint logic
+        import uuid
+        from routes.sessions import _get_db
+        now = datetime.now(timezone.utc).isoformat()
+        session_id = str(uuid.uuid4())
+        db = _get_db()
+        try:
+            db.execute(
+                "INSERT INTO sessions (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                (session_id, "Nueva conversación", now, now),
+            )
+            db.commit()
+        finally:
+            db.close()
+
+    # Load existing history from DB
+    from routes.sessions import _get_db as _get_db2
+    db = _get_db2()
+    try:
+        rows = db.execute(
+            "SELECT role, content FROM messages WHERE session_id = ? ORDER BY id ASC",
+            (session_id,),
+        ).fetchall()
+        initial_history = [{"role": r["role"], "content": r["content"]} for r in rows]
+    finally:
+        db.close()
+
+    # Replace the old in-memory history with persisted data
+    async with _history_lock:
+        _histories[session_id] = initial_history
+
     hb_task: asyncio.Task | None = None
 
     async def heartbeat():
@@ -280,6 +427,15 @@ async def chat_websocket(ws: WebSocket):
         history = await _get_history(session_id)
 
         history.append({"role": "user", "content": user_msg})
+        append_message(session_id, "user", user_msg)
+
+        # Auto-title on first user message
+        msg_count = sum(1 for m in history if m["role"] == "user")
+        if msg_count == 1:
+            try:
+                auto_title_session(session_id)
+            except Exception:
+                pass
 
         try:
             stream = await client.chat.completions.create(
@@ -323,6 +479,15 @@ async def chat_websocket(ws: WebSocket):
             })
 
             history.append({"role": "assistant", "content": final_content})
+
+            # Save assistant message to DB
+            try:
+                append_message(session_id, "assistant", final_content)
+            except Exception:
+                pass
+
+            # Send push notification
+            await _send_chat_push(session_id, final_content)
 
             # Token tracking
             if _HAS_TRACKER:
@@ -385,8 +550,35 @@ async def chat_websocket(ws: WebSocket):
             if not content:
                 continue
 
+            # ── Detectar intent de recordatorio (prioritario) ────────────
+            if _is_reminder_intent(content):
+                await ws.send_json({
+                    "type": "chunk",
+                    "content": "⏰ Procesando recordatorio...",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+
+                reminder_data = await _parse_reminder_with_llm(content)
+
+                if reminder_data and "text" in reminder_data and "datetime" in reminder_data:
+                    result_msg = await _create_reminder_entry(reminder_data)
+                    await ws.send_json({
+                        "type": "done",
+                        "content": result_msg,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+                    async with _history_lock:
+                        _histories.setdefault(session_id, []).append(
+                            {"role": "user", "content": content}
+                        )
+                        _histories[session_id].append(
+                            {"role": "assistant", "content": result_msg}
+                        )
+                else:
+                    await llm_stream(session_id, content)
+
             # ── Detectar intent de calendario ──────────────────────────
-            if _is_calendar_intent(content):
+            elif _is_calendar_intent(content):
                 # Avisar que estamos procesando
                 await ws.send_json({
                     "type": "chunk",

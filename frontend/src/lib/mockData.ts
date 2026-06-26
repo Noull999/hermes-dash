@@ -93,10 +93,10 @@ export const mockEmailResponse = {
 
 // ── Calendar ──────────────────────────────────────────────────────────────
 export const mockCalendarEvents: CalendarEvent[] = [
-  { id: 'cal-1', title: 'Sprint Review', description: 'Demo completed stories for stakeholder feedback.', start: '2025-06-27T15:00:00Z', end: '2025-06-27T16:00:00Z', allDay: false, location: 'Zoom #main' },
-  { id: 'cal-2', title: '1:1 with Alex', description: 'Weekly catch-up on career growth.', start: '2025-06-26T10:00:00Z', end: '2025-06-26T10:30:00Z', allDay: false, location: 'Room 3B' },
-  { id: 'cal-3', title: 'OKR Planning — Q3', description: 'Set objectives and key results for next quarter.', start: '2025-06-30T09:00:00Z', end: '2025-06-30T12:00:00Z', allDay: false, location: 'Conference Room A' },
-  { id: 'cal-4', title: 'Independence Day (US)', description: 'US holiday — optional work-from-home.', start: '2025-07-04T00:00:00Z', end: '2025-07-05T00:00:00Z', allDay: true, location: '' },
+  { id: 'cal-1', title: 'Sprint Review', description: 'Demo completed stories for stakeholder feedback.', start: '2025-06-27T15:00:00Z', end: '2025-06-27T16:00:00Z', allDay: false, location: 'Zoom #main', reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 30 }] } },
+  { id: 'cal-2', title: '1:1 with Alex', description: 'Weekly catch-up on career growth.', start: '2025-06-26T10:00:00Z', end: '2025-06-26T10:30:00Z', allDay: false, location: 'Room 3B', reminders: { useDefault: true, overrides: [] } },
+  { id: 'cal-3', title: 'OKR Planning — Q3', description: 'Set objectives and key results for next quarter.', start: '2025-06-30T09:00:00Z', end: '2025-06-30T12:00:00Z', allDay: false, location: 'Conference Room A', reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 1440 }, { method: 'email', minutes: 60 }] } },
+  { id: 'cal-4', title: 'Independence Day (US)', description: 'US holiday — optional work-from-home.', start: '2025-07-04T00:00:00Z', end: '2025-07-05T00:00:00Z', allDay: true, location: '', reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 1440 }] } },
 ];
 
 export const mockCalendarResponse = {

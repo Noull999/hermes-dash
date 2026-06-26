@@ -3,9 +3,20 @@ import { useLogStore } from '@/store/useLogStore';
 type MessageHandler = (data: unknown) => void;
 type StatusHandler = (status: 'connected' | 'disconnected' | 'reconnecting' | 'timeout') => void;
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080/api/chat';
+const WS_BASE = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080/api/chat';
 const RECONNECT_DELAY = 3000;
 const MAX_RECONNECT_ATTEMPTS = 10;
+const SESSION_KEY = 'hermes_chat_session_id';
+
+function getSessionId(): string {
+  if (typeof window === 'undefined') return '';
+  let sid = localStorage.getItem(SESSION_KEY);
+  if (!sid) {
+    sid = crypto.randomUUID();
+    localStorage.setItem(SESSION_KEY, sid);
+  }
+  return sid;
+}
 
 class WebSocketClient {
   private ws: WebSocket | null = null;
@@ -21,12 +32,14 @@ class WebSocketClient {
     if (this.ws?.readyState === WebSocket.OPEN) return;
 
     try {
-      this.ws = new WebSocket(WS_URL);
+      const sid = getSessionId();
+      const url = sid ? `${WS_BASE}?session_id=${sid}` : WS_BASE;
+      this.ws = new WebSocket(url);
       this.connectingSince = Date.now();
       useLogStore.getState().addLog({
         level: 'info', source: 'ws',
         message: `Conectando WS...`,
-        details: WS_URL.slice(0, 50),
+        details: url.slice(0, 60),
       });
     } catch (err) {
       console.error('WS connection failed:', err);

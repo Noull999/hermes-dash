@@ -238,6 +238,10 @@ export interface CalendarEvent {
   end: string;
   allDay: boolean;
   location: string;
+  reminders?: {
+    useDefault: boolean;
+    overrides: { method: string; minutes: number }[];
+  };
 }
 
 export interface CalendarResponse {

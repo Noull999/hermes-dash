@@ -51,14 +51,40 @@ async def get_events(days: int = Query(7, ge=1, le=30)):
         result = []
         for ev in events:
             start = ev.get("start", {})
+            is_all_day = "date" in start and "dateTime" not in start
+            if is_all_day:
+                # AllDay events come as "2026-06-27" — JS parses as UTC midnight
+                # Force Chile timezone so frontend shows correct day
+                raw_date = start.get("date", "")
+                if raw_date:
+                    start_str = raw_date + "T00:00:00-04:00"
+                else:
+                    start_str = ""
+                end_raw = ev.get("end", {}).get("date", "")
+                end_str = end_raw + "T23:59:59-04:00" if end_raw else ""
+            else:
+                start_str = start.get("dateTime", "")
+                end_raw = ev.get("end", {}).get("dateTime", "")
+                end_str = end_raw or ""
+
+            reminders_raw = ev.get("reminders", {})
+            overrides = reminders_raw.get("overrides", [])
+            reminders = [
+                {"method": r.get("method", ""), "minutes": r.get("minutes", 0)}
+                for r in overrides
+            ]
             result.append({
                 "id": ev.get("id", ""),
                 "title": ev.get("summary", "(Sin título)"),
                 "description": ev.get("description", ""),
-                "start": start.get("dateTime", start.get("date", "")),
-                "end": ev.get("end", {}).get("dateTime", ev.get("end", {}).get("date", "")),
-                "allDay": "date" in start and "dateTime" not in start,
+                "start": start_str,
+                "end": end_str,
+                "allDay": is_all_day,
                 "location": ev.get("location", ""),
+                "reminders": {
+                    "useDefault": reminders_raw.get("useDefault", True),
+                    "overrides": reminders,
+                },
             })
 
         return {"events": result, "total": len(result)}
