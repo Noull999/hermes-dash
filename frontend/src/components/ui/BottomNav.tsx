@@ -2,12 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Orbit, MessageSquare, BarChart3, FolderGit2, Mail, CalendarDays, Briefcase, Brain, Settings } from 'lucide-react';
+import { MessageSquare, BarChart3, FolderGit2, Mail, CalendarDays, Briefcase, Brain, Settings } from 'lucide-react';
 import { classNames } from '@/lib/utils';
 
 const tabs = [
-  { href: '/', label: 'ORB', Icon: Orbit },
-  { href: '/chat', label: 'CHAT', Icon: MessageSquare },
+  { href: '/', label: 'CHAT', Icon: MessageSquare },
   { href: '/dashboard', label: 'PANEL', Icon: BarChart3 },
   { href: '/email', label: 'MAIL', Icon: Mail },
   { href: '/calendar', label: 'CAL', Icon: CalendarDays },

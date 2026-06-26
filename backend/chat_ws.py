@@ -153,7 +153,7 @@ async def chat_websocket(ws: WebSocket):
                 messages=history,
                 stream=True,
                 temperature=0.7,
-                max_tokens=2048,
+                max_tokens=4096,
             )
 
             full_content = ""
