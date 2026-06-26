@@ -2,8 +2,8 @@
 
 import Card from '@/components/ui/Card';
 import MiniOrb from './MiniOrb';
-import { RepoData } from '@/lib/api';
-import { GitBranch, GitCommitHorizontal, FileWarning, ArrowUpFromLine, ArrowDownToLine, Sparkles } from 'lucide-react';
+import { RepoData, pullRepo } from '@/lib/api';
+import { GitBranch, GitCommitHorizontal, FileWarning, ArrowUpFromLine, ArrowDownToLine, Sparkles, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import ClaudeLauncher from './ClaudeLauncher';
 
@@ -20,6 +20,31 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default function RepoCard({ repo }: RepoCardProps) {
   const [claudeOpen, setClaudeOpen] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [pullResult, setPullResult] = useState<'idle' | 'success' | 'error'>('idle');
+  const [pullMsg, setPullMsg] = useState('');
+
+  const handlePull = async () => {
+    setPulling(true);
+    setPullResult('idle');
+    setPullMsg('');
+    try {
+      const res = await pullRepo(repo.name);
+      if (res.success) {
+        setPullResult('success');
+        setPullMsg(res.output || 'Already up to date');
+      } else {
+        setPullResult('error');
+        setPullMsg(res.output || 'Error desconocido');
+      }
+    } catch (err) {
+      setPullResult('error');
+      setPullMsg((err as Error).message);
+    } finally {
+      setPulling(false);
+      setTimeout(() => { setPullResult('idle'); setPullMsg(''); }, 4000);
+    }
+  };
   const statusColor =
     repo.status === 'synced' ? 'var(--success)'
     : repo.status === 'behind' ? 'var(--amber)'
@@ -76,8 +101,23 @@ export default function RepoCard({ repo }: RepoCardProps) {
 
         {/* actions */}
         <div className="flex items-center gap-2 flex-wrap">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-[var(--hairline-strong)] bg-[rgba(79,227,255,0.08)] text-[var(--cyan)] hud-label text-[9px] hover:bg-[rgba(79,227,255,0.14)] transition-all">
-            <ArrowDownToLine size={11} />PULL VPS
+          {pullMsg && (
+            <div className={`w-full text-[10px] px-2 py-1 rounded mb-1 ${
+              pullResult === 'success'
+                ? 'text-[var(--success)] bg-[rgba(93,255,176,0.06)]'
+                : 'text-[var(--error)] bg-[rgba(255,93,108,0.06)]'
+            }`}>
+              {pullResult === 'success' ? <CheckCircle2 size={10} className="inline mr-1" /> : <XCircle size={10} className="inline mr-1" />}
+              {pullMsg.slice(0, 120)}
+            </div>
+          )}
+          <button
+            onClick={handlePull}
+            disabled={pulling}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-[var(--hairline-strong)] bg-[rgba(79,227,255,0.08)] text-[var(--cyan)] hud-label text-[9px] hover:bg-[rgba(79,227,255,0.14)] transition-all disabled:opacity-50"
+          >
+            {pulling ? <Loader2 size={11} className="animate-spin" /> : <ArrowDownToLine size={11} />}
+            {pulling ? 'PULLING...' : 'PULL VPS'}
           </button>
           <button
             onClick={() => setClaudeOpen(true)}

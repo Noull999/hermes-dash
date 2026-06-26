@@ -104,6 +104,13 @@ export async function getRepos() {
   return request<RepoData[]>('/api/repos');
 }
 
+export async function pullRepo(repoName: string) {
+  return request<{ success: boolean; output: string; fetch: string }>('/api/repos/pull', {
+    method: 'POST',
+    body: JSON.stringify({ repo: repoName }),
+  });
+}
+
 // Timeline — matches backend /api/timeline
 export interface TimelineEvent {
   timestamp: string;
@@ -174,7 +181,7 @@ export interface ClaudePayload {
 }
 
 export async function runClaude(payload: ClaudePayload) {
-  return request<{ response: string; session_id: string }>('/api/claude', {
+  return request<{ success: boolean; response: string; commit: string | null; error: string | null }>('/api/claude', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

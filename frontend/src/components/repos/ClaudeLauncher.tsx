@@ -46,7 +46,10 @@ export default function ClaudeLauncher({ open, onClose, defaultRepo }: ClaudeLau
         prompt: prompt.trim(),
         mode: selectedMode as 'chat' | 'code' | 'review',
       });
-      setResponse(result.response);
+      setResponse(result.response || result.error || 'Sin respuesta');
+      if (!result.success && result.error) {
+        setResponse(`Error: ${result.error}\n\n${result.response || ''}`);
+      }
     } catch (err) {
       setResponse(`Error: ${(err as Error).message}`);
     } finally {

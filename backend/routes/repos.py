@@ -4,7 +4,7 @@ import os
 import subprocess
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from auth import verify_token
 
@@ -182,3 +182,36 @@ def get_repos(_token: str = Depends(verify_token)):
 
     merged.sort(key=lambda r: r.get("updated_at", ""), reverse=True)
     return merged
+
+
+@router.post("/api/repos/pull")
+async def pull_repo(request: Request, _token: str = Depends(verify_token)):
+    """Git pull en un repo del VPS."""
+    body = await request.json()
+    repo_name = body.get("repo", "")
+    if not repo_name:
+        raise HTTPException(status_code=400, detail="repo name required")
+
+    repo_dir = os.path.join(REPO_BASE, repo_name)
+    if not os.path.isdir(repo_dir) or not os.path.isdir(os.path.join(repo_dir, ".git")):
+        raise HTTPException(status_code=400, detail=f"Repo '{repo_name}' not found on VPS")
+
+    try:
+        # git fetch + git pull
+        fetch = subprocess.run(
+            ["git", "fetch", "--all"],
+            cwd=repo_dir, capture_output=True, text=True, timeout=30,
+        )
+        pull = subprocess.run(
+            ["git", "pull"],
+            cwd=repo_dir, capture_output=True, text=True, timeout=30,
+        )
+        return {
+            "success": pull.returncode == 0,
+            "output": pull.stdout.strip() or pull.stderr.strip(),
+            "fetch": fetch.stdout.strip() or fetch.stderr.strip(),
+        }
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="git pull timed out")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
