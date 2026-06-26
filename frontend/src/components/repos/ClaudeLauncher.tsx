@@ -15,9 +15,9 @@ interface ClaudeLauncherProps {
 }
 
 const models = [
-  { id: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', desc: 'Balance velocidad/calidad' },
-  { id: 'claude-4-20250514', label: 'Claude 4', desc: 'Máxima capacidad' },
-  { id: 'claude-haiku-3-20240307', label: 'Claude Haiku 3', desc: 'Rápido y ligero' },
+  { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', desc: 'Balance velocidad/calidad' },
+  { id: 'claude-opus-4-8', label: 'Claude Opus 4.8', desc: 'Máxima capacidad' },
+  { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5', desc: 'Rápido y ligero' },
 ];
 
 const modes = [

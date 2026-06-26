@@ -230,6 +230,11 @@ export interface JobInfo {
   schedule: string;
   status: string;
   substatus?: string;
+  command?: string;     // what the job actually runs
+  description?: string; // human description from cron.json
+  last_run?: string;
+  next_run?: string;
+  running?: boolean;    // true if executing right now
 }
 
 export interface RunEntry {

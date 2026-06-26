@@ -39,6 +39,61 @@ export function classNames(...classes: (string | boolean | undefined | null)[]):
   return classes.filter(Boolean).join(' ');
 }
 
+const DAYS_ES = ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'];
+
+/**
+ * Translate a 5-field cron expression into plain Spanish.
+ * Falls back to the raw expression for patterns it doesn't recognise.
+ */
+export function humanizeCron(expr: string): string {
+  if (!expr) return '';
+  if (expr === 'always') return 'Servicio continuo';
+
+  const parts = expr.trim().split(/\s+/);
+  if (parts.length < 5) {
+    // Friendly interval shorthands like "6h", "30m", "@daily"
+    const m = expr.match(/^(\d+)\s*([mhd])$/i);
+    if (m) {
+      const n = Number(m[1]);
+      const unit = { m: 'minuto', h: 'hora', d: 'día' }[m[2].toLowerCase()]!;
+      return `Cada ${n} ${unit}${n > 1 ? (m[2].toLowerCase() === 'h' ? 's' : 's') : ''}`;
+    }
+    if (expr === '@hourly') return 'Cada hora';
+    if (expr === '@daily') return 'Diario a medianoche';
+    if (expr === '@weekly') return 'Semanal (domingo)';
+    return expr;
+  }
+
+  const [min, hour, dom, , dow] = parts;
+  const at = (h: string, m: string) =>
+    `${h.padStart(2, '0')}:${m.padStart(2, '0')}`;
+
+  // Every N minutes
+  if (min.startsWith('*/') && hour === '*') {
+    return `Cada ${min.slice(2)} minutos`;
+  }
+  // Every N hours
+  if (hour.startsWith('*/') && (min === '0' || min === '*')) {
+    return `Cada ${hour.slice(2)} horas`;
+  }
+  // Every minute
+  if (min === '*' && hour === '*') return 'Cada minuto';
+
+  // Specific time
+  if (/^\d+$/.test(min) && /^\d+$/.test(hour)) {
+    const time = at(hour, min);
+    if (dow !== '*' && /^\d$/.test(dow)) {
+      return `${DAYS_ES[Number(dow)]?.replace(/^\w/, (c) => c.toUpperCase())} a las ${time}`;
+    }
+    if (dom !== '*' && /^\d+$/.test(dom)) {
+      return `Día ${dom} de cada mes a las ${time}`;
+    }
+    return `Diario a las ${time}`;
+  }
+
+  return expr;
+}
+
 export function getStreakDays(): number {
   // Calculate streak from localStorage
   if (typeof window === 'undefined') return 0;

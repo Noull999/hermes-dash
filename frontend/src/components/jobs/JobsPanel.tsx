@@ -2,6 +2,8 @@
 
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
+import { humanizeCron } from '@/lib/utils';
+import { JobInfo, RunEntry } from '@/lib/api';
 import {
   CalendarClock,
   Timer,
@@ -10,21 +12,9 @@ import {
   AlertCircle,
   Terminal,
   Cpu,
+  ChevronRight,
+  Clock,
 } from 'lucide-react';
-
-interface JobInfo {
-  source: string;
-  id: string;
-  name: string;
-  schedule: string;
-  status: string;
-  substatus?: string;
-}
-
-interface RunEntry {
-  time: string;
-  event: string;
-}
 
 interface JobsPanelProps {
   jobs: JobInfo[];
@@ -32,112 +22,147 @@ interface JobsPanelProps {
   loading: boolean;
 }
 
-const statusConfig: Record<
-  string,
-  { variant: 'success' | 'warning' | 'error'; icon: React.ReactNode }
-> = {
-  active: {
-    variant: 'success',
-    icon: <Activity size={12} />,
-  },
-  paused: {
-    variant: 'warning',
-    icon: <PauseCircle size={12} />,
-  },
-  error: {
-    variant: 'error',
-    icon: <AlertCircle size={12} />,
-  },
+const statusLabel: Record<string, string> = {
+  active: 'ACTIVO',
+  paused: 'PAUSADO',
+  inactive: 'DETENIDO',
+  error: 'ERROR',
+};
+
+const statusVariant: Record<string, 'success' | 'warning' | 'error'> = {
+  active: 'success',
+  paused: 'warning',
+  inactive: 'warning',
+  error: 'error',
 };
 
 function formatTime(iso: string): string {
+  if (!iso) return '';
   const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
   return d.toLocaleString('es-CL', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
+    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
   });
+}
+
+function relativeNext(iso?: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const diff = d.getTime() - Date.now();
+  if (diff < 0) return 'pendiente';
+  const mins = Math.round(diff / 60000);
+  if (mins < 60) return `en ${mins} min`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `en ${hrs}h`;
+  return `en ${Math.round(hrs / 24)}d`;
 }
 
 export default function JobsPanel({ jobs, runs, loading }: JobsPanelProps) {
   if (loading) {
     return (
       <div className="space-y-4">
-        {/* Skeleton section */}
-        <div className="h-5 w-44 bg-white/5 rounded animate-pulse mb-3" />
+        <div className="skeleton h-4 w-44 mb-3" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-28 bg-white/5 rounded-xl animate-pulse" />
-          ))}
+          {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton h-32 rounded" />)}
         </div>
-        <div className="h-5 w-40 bg-white/5 rounded animate-pulse mt-6 mb-3" />
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-12 bg-white/5 rounded-xl animate-pulse" />
-        ))}
       </div>
     );
   }
 
+  const runningCount = jobs.filter((j) => j.running).length;
+
   return (
     <div className="space-y-6">
-      {/* Jobs Programados */}
+      {/* Jobs programados */}
       <section>
-        <h2 className="text-lg font-semibold text-white/90 flex items-center gap-2 mb-3">
-          <CalendarClock className="w-5 h-5 text-cyan-400" />
-          Jobs Programados
-        </h2>
+        <div className="hud-divider mb-3">
+          <CalendarClock className="w-3.5 h-3.5 text-[var(--cyan)]" />
+          <span className="hud-label text-[10px] text-[var(--text)]">JOBS REGISTRADOS</span>
+          <span className="hud-readout text-[10px] text-[var(--text-faint)]">
+            {jobs.length} · {runningCount} EN EJECUCIÓN
+          </span>
+        </div>
 
         {jobs.length === 0 ? (
-          <Card className="p-6 text-center">
-            <div className="flex flex-col items-center gap-2">
-              <Terminal className="w-10 h-10 text-white/20" />
-              <p className="text-white/50 text-sm">No hay jobs programados.</p>
-            </div>
+          <Card className="py-10 text-center">
+            <Terminal className="w-10 h-10 text-[var(--text-faint)] mx-auto mb-3" />
+            <p className="hud-label text-[10px] text-[var(--text-muted)]">SIN JOBS PROGRAMADOS</p>
           </Card>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {jobs.map((job) => {
-              const cfg = statusConfig[job.status] || statusConfig.error;
+              const human = humanizeCron(job.schedule);
+              const isSystemd = job.source === 'systemd';
               return (
-                <Card key={job.id} className="p-4 space-y-3">
+                <Card key={job.id} className="relative p-4 space-y-2.5 overflow-hidden">
+                  {/* running pulse accent */}
+                  {job.running && (
+                    <span className="absolute left-0 top-0 bottom-0 w-[2px] bg-[var(--cyan)] shadow-[0_0_8px_var(--cyan)] animate-pulse" />
+                  )}
+
                   {/* Header */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-sm font-semibold text-white/90 truncate">
+                      <h3 className="text-sm font-semibold text-[var(--text)] truncate">
                         {job.name}
                       </h3>
                       <div className="flex items-center gap-1.5 mt-1">
-                        {job.source === 'systemd' ? (
-                          <Cpu size={11} className="text-purple-400" />
-                        ) : (
-                          <Terminal size={11} className="text-cyan-400" />
-                        )}
-                        <Badge
-                          variant={job.source === 'systemd' ? 'purple' : 'accent'}
-                        >
-                          {job.source === 'systemd' ? 'systemd' : 'Hermes'}
-                        </Badge>
+                        {isSystemd
+                          ? <Cpu size={11} className="text-purple-400" />
+                          : <Terminal size={11} className="text-[var(--cyan)]" />}
+                        <span className="hud-label text-[8px] text-[var(--text-faint)]">
+                          {isSystemd ? 'SYSTEMD' : 'HERMES CRON'}
+                        </span>
                       </div>
                     </div>
-                    <Badge variant={cfg.variant} dot>
-                      {job.status === 'active'
-                        ? 'Activo'
-                        : job.status === 'paused'
-                          ? 'Pausado'
-                          : 'Error'}
-                    </Badge>
+                    {job.running
+                      ? <Badge variant="accent" dot>EJECUTÁNDOSE</Badge>
+                      : <Badge variant={statusVariant[job.status] || 'error'} dot>
+                          {statusLabel[job.status] || job.status.toUpperCase()}
+                        </Badge>}
                   </div>
 
-                  {/* Schedule */}
-                  <div className="flex items-center gap-2 text-xs text-white/50">
-                    <Timer size={12} />
-                    <span className="font-mono">{job.schedule}</span>
+                  {/* What it does */}
+                  {job.description && (
+                    <p className="text-xs text-[var(--text-muted)] leading-snug">
+                      {job.description}
+                    </p>
+                  )}
+
+                  {/* The actual command */}
+                  {job.command && (
+                    <div className="flex items-start gap-1.5">
+                      <ChevronRight size={12} className="text-[var(--text-faint)] mt-0.5 flex-shrink-0" />
+                      <code className="hud-readout text-[10px] text-[var(--cyan)] break-all leading-snug">
+                        {job.command}
+                      </code>
+                    </div>
+                  )}
+
+                  {/* Schedule, humanized */}
+                  <div className="flex items-center justify-between pt-1 border-t border-[var(--hairline)]">
+                    <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                      <Timer size={12} className="text-[var(--text-faint)]" />
+                      <span>{human || job.schedule}</span>
+                    </div>
+                    {job.next_run && (
+                      <div className="flex items-center gap-1 hud-readout text-[10px] text-[var(--text-faint)]">
+                        <Clock size={10} />
+                        {relativeNext(job.next_run)}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Substatus hint */}
+                  {/* raw cron, small */}
+                  {!isSystemd && job.schedule && job.schedule !== '?' && (
+                    <p className="hud-readout text-[9px] text-[var(--text-faint)] opacity-60">
+                      {job.schedule}
+                    </p>
+                  )}
+
                   {job.substatus && (
-                    <p className="text-[11px] text-white/40">{job.substatus}</p>
+                    <p className="text-[11px] text-[var(--text-faint)]">{job.substatus}</p>
                   )}
                 </Card>
               );
@@ -146,35 +171,31 @@ export default function JobsPanel({ jobs, runs, loading }: JobsPanelProps) {
         )}
       </section>
 
-      {/* Últimas Ejecuciones */}
+      {/* Últimas ejecuciones */}
       <section>
-        <h2 className="text-lg font-semibold text-white/90 flex items-center gap-2 mb-3">
-          <Activity className="w-5 h-5 text-cyan-400" />
-          Últimas Ejecuciones
-        </h2>
+        <div className="hud-divider mb-3">
+          <Activity className="w-3.5 h-3.5 text-[var(--cyan)]" />
+          <span className="hud-label text-[10px] text-[var(--text)]">REGISTRO DE EJECUCIONES</span>
+        </div>
 
         {runs.length === 0 ? (
-          <Card className="p-6 text-center">
-            <div className="flex flex-col items-center gap-2">
-              <Timer className="w-10 h-10 text-white/20" />
-              <p className="text-white/50 text-sm">
-                No hay ejecuciones recientes.
-              </p>
-            </div>
+          <Card className="py-8 text-center">
+            <Timer className="w-8 h-8 text-[var(--text-faint)] mx-auto mb-2" />
+            <p className="hud-label text-[10px] text-[var(--text-muted)]">SIN EJECUCIONES RECIENTES</p>
           </Card>
         ) : (
           <div className="space-y-1">
             {runs.map((run, idx) => (
               <div
                 key={idx}
-                className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04] fade-in"
+                className="flex items-center gap-3 p-3 rounded bg-[rgba(255,255,255,0.02)] border border-[var(--hairline)] fade-in"
                 style={{ animationDelay: `${idx * 30}ms` }}
               >
-                <div className="w-1.5 h-1.5 rounded-full bg-cyan-400/60 flex-shrink-0" />
-                <span className="text-xs text-white/40 flex-shrink-0 min-w-[100px] font-mono">
+                <div className="w-1.5 h-1.5 rounded-full bg-[var(--cyan)] opacity-60 flex-shrink-0" />
+                <span className="hud-readout text-[10px] text-[var(--text-faint)] flex-shrink-0 min-w-[110px]">
                   {formatTime(run.time)}
                 </span>
-                <span className="text-sm text-white/70">{run.event}</span>
+                <span className="text-sm text-[var(--text-muted)]">{run.event}</span>
               </div>
             ))}
           </div>

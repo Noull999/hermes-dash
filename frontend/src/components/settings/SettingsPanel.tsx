@@ -53,11 +53,11 @@ export default function SettingsPanel() {
         <div className="space-y-2 text-sm">
           <div className="flex items-center justify-between py-1.5 border-b border-white/[0.04]">
             <span className="text-white/50">Nombre</span>
-            <span className="text-white/80">José</span>
+            <span className="text-white/80">José Esteban Asencio</span>
           </div>
           <div className="flex items-center justify-between py-1.5 border-b border-white/[0.04]">
             <span className="text-white/50">Email</span>
-            <span className="text-white/80">jose@ejemplo.cl</span>
+            <span className="text-white/80">joseestebanasencio@gmail.com</span>
           </div>
           <div className="flex items-center justify-between py-1.5">
             <span className="text-white/50">Rol</span>
@@ -133,7 +133,7 @@ export default function SettingsPanel() {
           <div className="flex items-center justify-between py-1.5 border-b border-white/[0.04]">
             <span className="text-white/50">Endpoint</span>
             <code className="text-xs text-white/70 bg-white/5 px-2 py-0.5 rounded font-mono">
-              {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}
+              /api/proxy → VPS
             </code>
           </div>
           <div className="flex items-center justify-between py-1.5">
@@ -239,20 +239,12 @@ export default function SettingsPanel() {
         </div>
         <div className="flex items-center gap-3 pt-1">
           <a
-            href="https://hermes-agent.nousresearch.com/docs"
+            href="https://github.com/Noull999/hermes-dash"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 transition"
           >
-            Documentación <ExternalLink size={10} />
-          </a>
-          <a
-            href="https://github.com/nousresearch/hermes-agent"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 transition"
-          >
-            GitHub <ExternalLink size={10} />
+            Repositorio <ExternalLink size={10} />
           </a>
         </div>
       </Card>

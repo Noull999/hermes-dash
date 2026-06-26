@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState, startTransition } from 'react';
 import ClientLayout from '@/components/ui/ClientLayout';
 import OrbCanvas from '@/components/orb/OrbCanvas';
 import Card from '@/components/ui/Card';
@@ -10,8 +11,9 @@ import TimelineCard from '@/components/dashboard/TimelineCard';
 import WeeklyChart from '@/components/dashboard/WeeklyChart';
 import { useHermesStore } from '@/store/useHermesStore';
 import { getTimeOfDay } from '@/lib/utils';
-import { BarChart3, Code2, Brain, ArrowUpRight } from 'lucide-react';
+import { BarChart3, Code2, Brain, ArrowUpRight, Calendar, MapPin } from 'lucide-react';
 import Link from 'next/link';
+import { getCalendarEvents, CalendarEvent } from '@/lib/api';
 
 const STATE_LABEL: Record<string, string> = {
   idle: 'STANDBY',
@@ -19,6 +21,74 @@ const STATE_LABEL: Record<string, string> = {
   success: 'COMPLETADO',
   error: 'ALERTA',
 };
+
+function TodayCard() {
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    startTransition(() => { load(); });
+  }, []);
+
+  async function load() {
+    try {
+      const data = await getCalendarEvents(1);
+      const today = new Date().toDateString();
+      const todays = (data.events || []).filter(
+        (e) => new Date(e.start).toDateString() === today
+      );
+      setEvents(todays);
+    } catch {
+      setEvents([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Card className="p-4">
+      <div className="hud-divider mb-3">
+        <Calendar className="w-3.5 h-3.5 text-[var(--cyan)]" />
+        <span className="hud-label text-[10px] text-[var(--text)]">HOY</span>
+        {!loading && (
+          <span className="hud-readout text-[10px] text-[var(--text-faint)]">
+            {events.length} {events.length === 1 ? 'EVENTO' : 'EVENTOS'}
+          </span>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">
+          <div className="skeleton h-10" />
+          <div className="skeleton h-10" />
+        </div>
+      ) : events.length === 0 ? (
+        <p className="text-[var(--text-faint)] text-xs">Sin eventos programados para hoy.</p>
+      ) : (
+        <div className="space-y-2">
+          {events.map((ev) => (
+            <div key={ev.id} className="relative pl-3">
+              <span className="absolute left-0 top-0 bottom-0 w-[2px] bg-[var(--cyan)] shadow-[0_0_6px_var(--cyan)]" />
+              <div className="hud-readout text-[11px] text-[var(--cyan)]">
+                {ev.allDay
+                  ? 'TODO EL DÍA'
+                  : new Date(ev.start).toLocaleTimeString('es-CL', {
+                      hour: '2-digit', minute: '2-digit', hour12: false,
+                    })}
+              </div>
+              <div className="text-sm text-[var(--text)] leading-snug">{ev.title}</div>
+              {ev.location && (
+                <div className="flex items-center gap-1 text-[10px] text-[var(--text-faint)] mt-0.5">
+                  <MapPin size={9} /> <span className="truncate">{ev.location}</span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
 
 export default function DashboardPage() {
   const orbState = useHermesStore((s) => s.orbState);
@@ -100,7 +170,11 @@ export default function DashboardPage() {
 
           <TokenCard />
 
-          <SystemCard />
+          {/* System + Today */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SystemCard />
+            <TodayCard />
+          </div>
 
           <WeeklyChart />
           <TimelineCard />
