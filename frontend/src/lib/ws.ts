@@ -1,3 +1,5 @@
+import { useLogStore } from '@/store/useLogStore';
+
 type MessageHandler = (data: unknown) => void;
 type StatusHandler = (status: 'connected' | 'disconnected' | 'reconnecting') => void;
 
@@ -18,8 +20,18 @@ class WebSocketClient {
 
     try {
       this.ws = new WebSocket(WS_URL);
+      useLogStore.getState().addLog({
+        level: 'info', source: 'ws',
+        message: `Conectando WS...`,
+        details: WS_URL.slice(0, 50),
+      });
     } catch (err) {
       console.error('WS connection failed:', err);
+      useLogStore.getState().addLog({
+        level: 'error', source: 'ws',
+        message: 'Error al crear WebSocket',
+        details: String(err),
+      });
       this.scheduleReconnect();
       return;
     }
@@ -27,14 +39,23 @@ class WebSocketClient {
     this.ws.onopen = () => {
       this.reconnectAttempts = 0;
       this.notifyStatus('connected');
+      useLogStore.getState().addLog({
+        level: 'info', source: 'ws', message: 'WebSocket conectado',
+      });
     };
 
     this.ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        // Log errors from server
+        if (data.type === 'error') {
+          useLogStore.getState().addLog({
+            level: 'error', source: 'gateway',
+            message: 'Gateway: ' + (data.content || 'error desconocido'),
+          });
+        }
         this.messageHandlers.forEach((h) => h(data));
       } catch {
-        // raw message
         this.messageHandlers.forEach((h) => h({ type: 'raw', content: event.data }));
       }
     };
@@ -43,12 +64,17 @@ class WebSocketClient {
       this.notifyStatus('disconnected');
       this.ws = null;
       if (this.shouldReconnect) {
+        useLogStore.getState().addLog({
+          level: 'warn', source: 'ws', message: 'WS desconectado, reconectando...',
+        });
         this.scheduleReconnect();
       }
     };
 
     this.ws.onerror = () => {
-      // onclose will fire after this
+      useLogStore.getState().addLog({
+        level: 'error', source: 'ws', message: 'Error en WebSocket',
+      });
     };
   }
 

@@ -10,6 +10,7 @@ import VoiceButton from '@/components/chat/VoiceButton';
 import { useChatStore } from '@/store/useChatStore';
 import { useHermesStore } from '@/store/useHermesStore';
 import { getTimeOfDay, classNames } from '@/lib/utils';
+import DebugPanel from '@/components/DebugPanel';
 import {
   Wifi, WifiOff, Mic, Sparkles,
   BarChart3, FolderGit2, Mail, CalendarDays, Briefcase, Brain, Settings,
@@ -250,6 +251,7 @@ export default function HomePage() {
       </div>
 
       {/* ── Bottom Nav ── */}
+      <DebugPanel />
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--void)]/92 backdrop-blur-xl border-t border-[var(--hairline)] safe-area-bottom">
         <div className="max-w-lg mx-auto flex items-center justify-start overflow-x-auto gap-0.5 h-[60px] px-2 scrollbar-none snap-x snap-mandatory">
           {navTabs.map(({ href, label, Icon }) => {

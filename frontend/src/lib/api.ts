@@ -1,6 +1,7 @@
 // All requests go through the same-origin server-side proxy
 // (/api/proxy/...). The proxy injects the auth token server-side, so the
 // token never reaches the browser and there is no CORS/mixed-content issue.
+import { useLogStore } from '@/store/useLogStore';
 const API_BASE = '/api/proxy';
 
 async function request<T>(
@@ -20,7 +21,14 @@ async function request<T>(
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`API ${res.status}: ${text || res.statusText}`);
+    const errMsg = `API ${res.status}: ${text || res.statusText}`;
+    useLogStore.getState().addLog({
+      level: 'error',
+      source: 'api',
+      message: `${endpoint} → ${res.status}`,
+      details: text || res.statusText,
+    });
+    throw new Error(errMsg);
   }
 
   if (res.status === 204) return {} as T;
