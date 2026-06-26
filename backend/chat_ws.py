@@ -15,7 +15,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from openai import AsyncOpenAI
 
 # ── Session persistence ──────────────────────────────────────────────
-from routes.sessions import append_message, auto_title_session
+from routes.sessions import append_message, auto_title_session, _get_db
 
 # ── Push notification helper ─────────────────────────────────────────
 async def _send_chat_push(session_id: str, preview: str):
@@ -380,9 +380,8 @@ async def chat_websocket(ws: WebSocket, session_id: str = Query("")):
 
     # ── Session resolution ──────────────────────────────────────────
     if not session_id:
-        # Create a new session via REST endpoint logic
+        # Create a new session
         import uuid
-        from routes.sessions import _get_db
         now = datetime.now(timezone.utc).isoformat()
         session_id = str(uuid.uuid4())
         db = _get_db()
@@ -394,10 +393,23 @@ async def chat_websocket(ws: WebSocket, session_id: str = Query("")):
             db.commit()
         finally:
             db.close()
+    else:
+        # Verify session exists in DB, create if missing
+        db = _get_db()
+        try:
+            exists = db.execute("SELECT 1 FROM sessions WHERE id = ?", (session_id,)).fetchone()
+            if not exists:
+                now = datetime.now(timezone.utc).isoformat()
+                db.execute(
+                    "INSERT INTO sessions (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                    (session_id, "Nueva conversación", now, now),
+                )
+                db.commit()
+        finally:
+            db.close()
 
     # Load existing history from DB
-    from routes.sessions import _get_db as _get_db2
-    db = _get_db2()
+    db = _get_db()
     try:
         rows = db.execute(
             "SELECT role, content FROM messages WHERE session_id = ? ORDER BY id ASC",
