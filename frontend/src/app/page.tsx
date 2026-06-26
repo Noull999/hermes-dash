@@ -3,18 +3,27 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import OrbCanvas from '@/components/orb/OrbCanvas';
 import Message from '@/components/chat/Message';
 import InputBox from '@/components/chat/InputBox';
 import VoiceButton from '@/components/chat/VoiceButton';
 import { useChatStore } from '@/store/useChatStore';
+import { useHermesStore } from '@/store/useHermesStore';
+import { getTimeOfDay, classNames } from '@/lib/utils';
 import {
   Wifi, WifiOff, Mic, Sparkles,
   BarChart3, FolderGit2, Mail, CalendarDays, Briefcase, Brain, Settings,
 } from 'lucide-react';
-import { classNames } from '@/lib/utils';
+
+const STATE_LABEL: Record<string, string> = {
+  idle: 'STANDBY',
+  processing: 'PROCESANDO',
+  success: 'COMPLETADO',
+  error: 'ALERTA',
+};
 
 const navTabs = [
-  { href: '/', label: 'CHAT', Icon: Sparkles },
+  { href: '/', label: 'HOME', Icon: Sparkles },
   { href: '/dashboard', label: 'PANEL', Icon: BarChart3 },
   { href: '/email', label: 'MAIL', Icon: Mail },
   { href: '/calendar', label: 'CAL', Icon: CalendarDays },
@@ -25,6 +34,9 @@ const navTabs = [
 ];
 
 export default function HomePage() {
+  const pathname = usePathname();
+
+  // ── Chat ──
   const messages = useChatStore((s) => s.messages);
   const isConnected = useChatStore((s) => s.isConnected);
   const isTyping = useChatStore((s) => s.isTyping);
@@ -32,44 +44,63 @@ export default function HomePage() {
   const disconnect = useChatStore((s) => s.disconnect);
   const sendMessage = useChatStore((s) => s.sendMessage);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const pathname = usePathname();
 
-  // ── Auto-connect ──
+  // ── Orb ──
+  const orbState = useHermesStore((s) => s.orbState);
+  const health = useHermesStore((s) => s.health);
+  const greeting = getTimeOfDay();
+  const online = health?.status === 'ok';
+
+  // ── Voice ──
+  const [micActive, setMicActive] = useState(false);
+  const [orbCompact, setOrbCompact] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const hasMessages = messages.length > 0;
+
+  // Auto-connect
   useEffect(() => {
     connect();
     return () => disconnect();
   }, [connect, disconnect]);
 
-  // ── Auto-scroll ──
+  // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  // ── Voice state ──
-  const [micActive, setMicActive] = useState(false);
+  // Detect scroll to compact the orb
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handler = () => {
+      setOrbCompact(el.scrollTop > 60);
+    };
+    el.addEventListener('scroll', handler, { passive: true });
+    return () => el.removeEventListener('scroll', handler);
+  }, []);
 
-  // Voice result → auto-send directo
+  // Voice → auto-send
   const handleVoiceResult = (text: string) => {
     if (text.trim()) {
       sendMessage(text.trim());
     }
   };
 
+  const orbHeight = orbCompact ? 'h-0 overflow-hidden' : 'h-[200px]';
+
   return (
     <div className="flex flex-col h-dvh bg-[var(--void)]">
       {/* ── Top bar ── */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-[rgba(255,255,255,0.04)] z-10">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-[rgba(255,255,255,0.04)] z-10 shrink-0">
         <div className="flex items-center gap-2">
+          <span className="text-sm font-bold tracking-[0.18em] text-[var(--text)]">
+            HERMES
+          </span>
           {isConnected ? (
-            <>
-              <Wifi size={12} className="text-[var(--success)]" />
-              <span className="text-[11px] text-[var(--success)]">HERMES</span>
-            </>
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)] shadow-[0_0_6px_var(--success)]" />
           ) : (
-            <>
-              <WifiOff size={12} className="text-[var(--error)]" />
-              <span className="text-[11px] text-[var(--error)]">OFF</span>
-            </>
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--error)]" />
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -81,81 +112,140 @@ export default function HomePage() {
           )}
           <VoiceButton
             onResult={handleVoiceResult}
-            autoStart={messages.length === 0}
+            autoStart={!hasMessages}
             onActiveChange={setMicActive}
           />
         </div>
       </div>
 
-      {/* ── Messages ── */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-[68px]">
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center px-6">
-            {/* Avatar */}
-            <div className="w-24 h-24 rounded-full bg-[rgba(0,212,255,0.06)] flex items-center justify-center mb-6 overflow-hidden border border-[rgba(0,212,255,0.1)] shadow-[0_0_30px_rgba(0,212,255,0.06)]">
-              <img src="/hermes-avatar.svg" alt="Hermes" className="w-20 h-20" />
-            </div>
-
-            <h2 className="text-xl font-bold tracking-[0.12em] text-[var(--text)] mb-2">
-              HERMES
-            </h2>
-            <p className="text-sm text-[var(--text-muted)] max-w-xs leading-relaxed mb-8">
-              {micActive
-                ? '🎤 Te escucho, di lo que necesites'
-                : 'Presiona el micrófono y habla, o escribe tu mensaje'}
-            </p>
-
-            {/* Sugerencias rápidas */}
-            <div className="grid grid-cols-2 gap-2 w-full max-w-sm">
-              {[
-                { label: '¿Qué puedes hacer?', icon: '✨' },
-                { label: 'Estado del sistema', icon: '🖥️' },
-                { label: 'Resume mi día', icon: '📋' },
-                { label: 'Abre el dashboard', icon: '📊' },
-              ].map((sug) => (
-                <button
-                  key={sug.label}
-                  onClick={() => sendMessage(sug.label)}
-                  className="glass text-left px-3 py-2.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[rgba(0,212,255,0.15)] transition-all"
-                >
-                  <span className="mr-1.5">{sug.icon}</span>
-                  {sug.label}
-                </button>
-              ))}
-            </div>
-
-            {micActive && (
-              <div className="mt-8 px-4 py-2 rounded-xl bg-[rgba(0,212,255,0.06)] border border-[rgba(0,212,255,0.1)] text-xs text-[var(--cyan)]">
-                🎤 Micrófono activo — habla normalmente
-              </div>
-            )}
+      {/* ── Scrollable content ── */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+        {/* ── Orb hero ── */}
+        <div
+          className={classNames(
+            'relative transition-all duration-300 ease-out',
+            orbHeight,
+          )}
+        >
+          <div className="absolute inset-0">
+            <OrbCanvas />
           </div>
-        ) : (
-          messages.map((msg) => (
-            <Message key={msg.id} message={msg} />
-          ))
-        )}
 
-        {isTyping && (
-          <div className="flex gap-3 fade-in">
-            <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-[rgba(139,92,246,0.15)] flex items-center justify-center overflow-hidden">
-              <img src="/hermes-avatar.svg" alt="Hermes" className="w-6 h-6" />
-            </div>
-            <div className="bg-[var(--card)] border border-[rgba(255,255,255,0.06)] rounded-2xl px-4 py-3">
-              <div className="flex gap-1">
-                <span className="typing-dot" />
-                <span className="typing-dot" />
-                <span className="typing-dot" />
-              </div>
+          {/* Reticle */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="reticle w-[168px] h-[168px] rounded-full border border-[var(--hairline)]" />
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="reticle-rev w-[132px] h-[132px] rounded-full border border-dashed border-[rgba(79,227,255,0.15)]" />
+          </div>
+
+          {/* Corner telemetry */}
+          <div className="absolute top-2 left-3 hud-label text-[7px] text-[var(--text-faint)]">
+            SYS.HERMES//v2
+          </div>
+          <div className="absolute top-2 right-3 hud-label text-[7px] text-[var(--text-faint)]">
+            PTO.MONTT · CL
+          </div>
+
+          {/* Scrim */}
+          <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-[var(--void)] via-transparent to-transparent" />
+
+          {/* Overlay status */}
+          <div className="absolute inset-0 flex flex-col justify-end items-center px-5 pb-3 text-center pointer-events-none">
+            <div className="hud-label text-[8px] mb-0.5">{greeting}</div>
+            <h1 className="text-lg font-bold tracking-[0.18em] text-[var(--text)] glow-text">
+              JOSÉ
+            </h1>
+            <div className="mt-1.5 flex items-center justify-center gap-2">
+              <span
+                className={classNames(
+                  'inline-flex items-center gap-1 px-2 h-5 border rounded-[2px] text-[9px] font-mono tracking-[0.14em]',
+                  orbState === 'error'
+                    ? 'border-[rgba(255,93,108,0.3)] text-[var(--error)]'
+                    : orbState === 'success'
+                    ? 'border-[rgba(93,255,176,0.3)] text-[var(--success)]'
+                    : 'border-[var(--hairline-strong)] text-[var(--cyan)]',
+                )}
+              >
+                <span className="w-1 h-1 rounded-full bg-current animate-pulse" />
+                {STATE_LABEL[orbState] || 'STANDBY'}
+              </span>
+              <span
+                className={classNames(
+                  'inline-flex items-center gap-1 px-2 h-5 border rounded-[2px] text-[9px] font-mono tracking-[0.14em]',
+                  online
+                    ? 'border-[rgba(93,255,176,0.3)] text-[var(--success)]'
+                    : 'border-[rgba(255,93,108,0.3)] text-[var(--error)]',
+                )}
+              >
+                API {online ? 'OK' : 'ERR'}
+              </span>
             </div>
           </div>
-        )}
+        </div>
 
-        <div ref={bottomRef} />
+        {/* ── Messages ── */}
+        <div className="px-4 py-4 space-y-4 pb-[132px]">
+          {!hasMessages ? (
+            <div className="flex flex-col items-center text-center px-6 pt-4">
+              <p className="text-sm text-[var(--text-muted)] max-w-xs leading-relaxed mb-6">
+                {micActive
+                  ? '🎤 Te escucho, di lo que necesites'
+                  : 'Presiona el micrófono y habla, o escribe tu mensaje'}
+              </p>
+
+              {/* Sugerencias */}
+              <div className="grid grid-cols-2 gap-2 w-full max-w-sm">
+                {[
+                  { label: '¿Qué puedes hacer?', icon: '✨' },
+                  { label: 'Estado del sistema', icon: '🖥️' },
+                  { label: 'Resume mi día', icon: '📋' },
+                  { label: 'Abre el dashboard', icon: '📊' },
+                ].map((sug) => (
+                  <button
+                    key={sug.label}
+                    onClick={() => sendMessage(sug.label)}
+                    className="glass text-left px-3 py-2.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[rgba(0,212,255,0.15)] transition-all"
+                  >
+                    <span className="mr-1.5">{sug.icon}</span>
+                    {sug.label}
+                  </button>
+                ))}
+              </div>
+
+              {micActive && (
+                <div className="mt-6 px-4 py-2 rounded-xl bg-[rgba(0,212,255,0.06)] border border-[rgba(0,212,255,0.1)] text-xs text-[var(--cyan)]">
+                  🎤 Habla normalmente, te escucho
+                </div>
+              )}
+            </div>
+          ) : (
+            messages.map((msg) => (
+              <Message key={msg.id} message={msg} />
+            ))
+          )}
+
+          {isTyping && (
+            <div className="flex gap-3 fade-in">
+              <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-[rgba(139,92,246,0.15)] flex items-center justify-center overflow-hidden">
+                <img src="/hermes-avatar.svg" alt="Hermes" className="w-6 h-6" />
+              </div>
+              <div className="bg-[var(--card)] border border-[rgba(255,255,255,0.06)] rounded-2xl px-4 py-3">
+                <div className="flex gap-1">
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div ref={bottomRef} />
+        </div>
       </div>
 
       {/* ── Input ── */}
-      <div className="pb-[60px]">
+      <div className="shrink-0 pb-[60px] bg-[var(--void)]">
         <InputBox />
       </div>
 
@@ -170,20 +260,24 @@ export default function HomePage() {
                 href={href}
                 className={classNames(
                   'group relative flex flex-col items-center gap-1 px-2.5 py-1.5 transition-all duration-200 snap-start flex-shrink-0',
-                  isActive ? 'text-[var(--cyan)]' : 'text-[var(--text-faint)] hover:text-[var(--text-muted)]'
+                  isActive
+                    ? 'text-[var(--cyan)]'
+                    : 'text-[var(--text-faint)] hover:text-[var(--text-muted)]',
                 )}
               >
                 <span
                   className={classNames(
                     'absolute top-0 left-1/2 -translate-x-1/2 h-[2px] rounded-full transition-all duration-300',
-                    isActive ? 'w-7 bg-[var(--cyan)] shadow-[0_0_8px_var(--cyan)]' : 'w-0 bg-transparent'
+                    isActive
+                      ? 'w-7 bg-[var(--cyan)] shadow-[0_0_8px_var(--cyan)]'
+                      : 'w-0 bg-transparent',
                   )}
                 />
                 <Icon
                   size={19}
                   className={classNames(
                     'transition-all duration-200',
-                    isActive && 'drop-shadow-[0_0_6px_var(--cyan)]'
+                    isActive && 'drop-shadow-[0_0_6px_var(--cyan)]',
                   )}
                 />
                 <span className="hud-label text-[8px] leading-none">{label}</span>
