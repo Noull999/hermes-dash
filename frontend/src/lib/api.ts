@@ -199,6 +199,7 @@ export interface ClaudePayload {
   model: string;
   prompt: string;
   mode?: 'chat' | 'code' | 'review';
+  allow_edits?: boolean;
 }
 
 export async function runClaude(payload: ClaudePayload) {

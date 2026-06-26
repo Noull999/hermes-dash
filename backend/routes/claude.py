@@ -19,6 +19,8 @@ class ClaudeRequest(BaseModel):
     repo: str
     model: str = "claude-sonnet-4-20250514"
     prompt: str
+    mode: str = "chat"
+    allow_edits: bool = False
 
 
 def _get_valid_repos() -> list[str]:
@@ -55,6 +57,11 @@ def run_claude(req: ClaudeRequest, _token: str = Depends(verify_token)):
         "--model", req.model,
         "--print",
     ]
+
+    # Auto-allow edits in 'code' mode or when allow_edits is explicitly set
+    if req.mode == "code" or req.allow_edits:
+        cmd.append("--allowedTools")
+        cmd.append("Bash,Edit,Write,Read")
 
     try:
         result = subprocess.run(

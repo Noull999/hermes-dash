@@ -6,7 +6,7 @@ import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { useHermesStore } from '@/store/useHermesStore';
 import { runClaude } from '@/lib/api';
-import { Sparkles, Send, Loader2, Terminal, MessageSquare, Code2 } from 'lucide-react';
+import { Sparkles, Send, Loader2, Terminal, MessageSquare, Code2, Shield, ShieldOff } from 'lucide-react';
 
 interface ClaudeLauncherProps {
   open: boolean;
@@ -31,6 +31,7 @@ export default function ClaudeLauncher({ open, onClose, defaultRepo }: ClaudeLau
   const [selectedRepo, setSelectedRepo] = useState(defaultRepo || '');
   const [selectedModel, setSelectedModel] = useState(models[0].id);
   const [selectedMode, setSelectedMode] = useState('chat');
+  const [allowEdits, setAllowEdits] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
@@ -45,6 +46,7 @@ export default function ClaudeLauncher({ open, onClose, defaultRepo }: ClaudeLau
         model: selectedModel,
         prompt: prompt.trim(),
         mode: selectedMode as 'chat' | 'code' | 'review',
+        allow_edits: allowEdits,
       });
       setResponse(result.response || result.error || 'Sin respuesta');
       if (!result.success && result.error) {
@@ -114,6 +116,41 @@ export default function ClaudeLauncher({ open, onClose, defaultRepo }: ClaudeLau
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Toggle permisos */}
+        <div className="flex items-center justify-between p-3 rounded-xl border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)]">
+          <div className="flex items-center gap-2">
+            {allowEdits ? (
+              <ShieldOff size={16} className="text-[var(--amber)]" />
+            ) : (
+              <Shield size={16} className="text-[var(--text-muted)]" />
+            )}
+            <div>
+              <span className="text-sm text-[var(--text)]">
+                {allowEdits ? 'Permiso concedido' : 'Modo solo lectura'}
+              </span>
+              <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
+                {allowEdits
+                  ? 'Claude puede editar archivos y hacer push'
+                  : 'Solo responde, sin editar archivos'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setAllowEdits(!allowEdits)}
+            className={`relative w-11 h-6 rounded-full transition-all ${
+              allowEdits
+                ? 'bg-[var(--accent)]'
+                : 'bg-[rgba(255,255,255,0.1)]'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${
+                allowEdits ? 'left-[22px]' : 'left-0.5'
+              }`}
+            />
+          </button>
         </div>
 
         {/* Prompt */}
