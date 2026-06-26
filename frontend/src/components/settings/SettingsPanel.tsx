@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import ProgressBar from '@/components/ui/ProgressBar';
+import PushManager from '@/components/PushManager';
 import {
   User,
   Moon,
@@ -121,6 +122,15 @@ export default function SettingsPanel() {
             />
           </button>
         </div>
+      </Card>
+
+      {/* Notificaciones Push */}
+      <Card className="p-4 space-y-3">
+        <h3 className="font-semibold text-white/90 flex items-center gap-2">
+          <Bell className="w-4 h-4 text-cyan-400" />
+          Notificaciones Push
+        </h3>
+        <PushManager />
       </Card>
 
       {/* API */}
