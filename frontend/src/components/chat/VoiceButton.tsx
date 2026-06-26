@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Mic, MicOff } from 'lucide-react';
+import { Mic, MicOff, VolumeX } from 'lucide-react';
 import { classNames } from '@/lib/utils';
 
 // ── Web Speech API types ──
@@ -51,6 +51,22 @@ interface VoiceButtonProps {
   onActiveChange?: (active: boolean) => void;
 }
 
+// ── Filtro de ruido ──
+const FILLER = /^(uh|ah|mm|hm|eh|ok|sí|si|no|a|e|o|u|)$/i;
+const MIN_LENGTH = 3;
+const DEBOUNCE_MS = 3000;       // max 1 envío cada 3s
+const INACTIVITY_TIMEOUT = 15000; // 15s sin voz válida → pausa
+const COOLDOWN_MS = 10000;       // pausa de 10s tras inactividad
+
+function isNoise(text: string): boolean {
+  const t = text.trim();
+  if (t.length < MIN_LENGTH) return true;
+  if (/^[.,!?\s]+$/.test(t)) return true;
+  if (FILLER.test(t)) return true;
+  if (/^(\S)\1{0,2}$/.test(t)) return true; // "aaa", "bbb"
+  return false;
+}
+
 export default function VoiceButton({
   onResult,
   autoStart = false,
@@ -59,9 +75,28 @@ export default function VoiceButton({
   const [listening, setListening] = useState(false);
   const [supported, setSupported] = useState(true);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [cooldown, setCooldown] = useState(false);
+  const [interimText, setInterimText] = useState('');
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
-  const autoStartedRef = useRef(false);
-  const listeningRef = useRef(false); // ref espejo para callbacks
+  const listeningRef = useRef(false);
+  const lastSendRef = useRef(0);
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasSentRef = useRef(false); // si envió algo válido en este ciclo
+
+  // ── Resetear timer de inactividad ──
+  const resetInactivity = useCallback(() => {
+    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+    inactivityTimerRef.current = setTimeout(() => {
+      // 15s sin enviar nada válido → pausar auto-start
+      if (autoStart && !hasSentRef.current) {
+        setCooldown(true);
+        cooldownTimerRef.current = setTimeout(() => {
+          setCooldown(false);
+        }, COOLDOWN_MS);
+      }
+    }, INACTIVITY_TIMEOUT);
+  }, [autoStart]);
 
   // ── Inicializar SpeechRecognition ──
   useEffect(() => {
@@ -76,22 +111,52 @@ export default function VoiceButton({
 
     const recognition = new (SpeechRecognitionCtor as SpeechRecognitionConstructor)();
     recognition.lang = 'es-CL';
-    recognition.interimResults = false;
+    recognition.interimResults = true;     // feedback visual
     recognition.maxAlternatives = 1;
-    recognition.continuous = false; // se reinicia manualmente
+    recognition.continuous = true;         // no se corta en pausas
 
     recognition.onstart = () => {
       listeningRef.current = true;
       setListening(true);
+      setInterimText('');
+      hasSentRef.current = false;
       onActiveChange?.(true);
+      resetInactivity();
     };
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const transcript = event.results[0][0].transcript;
-      if (transcript.trim()) {
-        onResult(transcript.trim());
+      let finalText = '';
+      let interimAccum = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalText += transcript;
+        } else {
+          interimAccum += transcript;
+        }
       }
-      // No paramos acá — onend maneja el reinicio si corresponde
+
+      // Feedback visual con los parciales
+      setInterimText(interimAccum);
+
+      // Procesar resultado final
+      if (finalText.trim()) {
+        const trimmed = finalText.trim();
+        if (isNoise(trimmed)) {
+          setInterimText(''); // no mostrar ruido
+          return;
+        }
+
+        // Debounce: no más de 1 envío cada 3s
+        const now = Date.now();
+        if (now - lastSendRef.current < DEBOUNCE_MS) return;
+        lastSendRef.current = now;
+
+        hasSentRef.current = true;
+        onResult(trimmed);
+        setInterimText('');
+      }
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
@@ -101,32 +166,36 @@ export default function VoiceButton({
       }
       listeningRef.current = false;
       setListening(false);
+      setInterimText('');
       onActiveChange?.(false);
     };
 
     recognition.onend = () => {
       listeningRef.current = false;
       setListening(false);
-      onActiveChange?.(false);
+      setInterimText('');
 
-      // Si estaba en autoStart y no es permanentemente fallido, reiniciar
-      // para seguir escuchando (ciclo continuo)
-      if (autoStart && !permissionDenied) {
+      // Auto-start: reiniciar si aplica
+      if (autoStart && !permissionDenied && !cooldown) {
         setTimeout(() => {
           if (!listeningRef.current) {
             try {
               recognition.start();
             } catch {
-              // browser rechazó, silencioso
+              // browser rechazó
             }
           }
         }, 400);
+      } else {
+        onActiveChange?.(false);
       }
     };
 
     recognitionRef.current = recognition;
 
     return () => {
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
       try {
         recognition.abort();
       } catch {
@@ -134,12 +203,11 @@ export default function VoiceButton({
       }
       recognitionRef.current = null;
     };
-  }, [onResult, autoStart, onActiveChange, permissionDenied]);
+  }, [onResult, autoStart, onActiveChange, permissionDenied, cooldown, resetInactivity]);
 
-  // ── Auto-start ──
+  // ── Auto-start (se re-evalúa al salir de cooldown) ──
   useEffect(() => {
-    if (autoStart && recognitionRef.current && !autoStartedRef.current) {
-      autoStartedRef.current = true;
+    if (autoStart && recognitionRef.current && !listeningRef.current && !cooldown && !permissionDenied) {
       const delay = setTimeout(() => {
         try {
           recognitionRef.current?.start();
@@ -149,7 +217,7 @@ export default function VoiceButton({
       }, 800);
       return () => clearTimeout(delay);
     }
-  }, [autoStart]);
+  }, [autoStart, cooldown, permissionDenied]);
 
   // ── Toggle manual ──
   const toggleListening = useCallback(() => {
@@ -158,6 +226,8 @@ export default function VoiceButton({
     if (listeningRef.current) {
       recognitionRef.current.stop();
     } else {
+      setCooldown(false);
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
       try {
         recognitionRef.current.start();
       } catch {
@@ -169,17 +239,36 @@ export default function VoiceButton({
   if (!supported) return null;
 
   return (
-    <button
-      onClick={toggleListening}
-      className={classNames(
-        'p-2 rounded-xl transition-all duration-200',
-        listening
-          ? 'bg-[var(--error)]/20 text-[var(--error)] shadow-[0_0_12px_rgba(239,68,68,0.3)] animate-pulse'
-          : 'text-[var(--text-muted)] hover:bg-[rgba(255,255,255,0.06)] hover:text-[var(--text)]'
+    <div className="flex items-center gap-2">
+      {/* Interim transcript flotante */}
+      {interimText && listening && (
+        <span className="text-[10px] text-[var(--cyan)]/60 italic max-w-[120px] truncate transition-opacity">
+          {interimText}
+        </span>
       )}
-      title={listening ? 'Detener' : 'Hablar'}
-    >
-      {listening ? <MicOff size={18} /> : <Mic size={18} />}
-    </button>
+
+      {cooldown && (
+        <span className="text-[9px] text-[var(--text-faint)] flex items-center gap-1">
+          <VolumeX size={10} />
+          PAUSA
+        </span>
+      )}
+
+      <button
+        onClick={toggleListening}
+        title={cooldown ? 'En pausa temporal' : listening ? 'Detener' : 'Hablar'}
+        disabled={cooldown}
+        className={classNames(
+          'p-2 rounded-xl transition-all duration-200',
+          listening
+            ? 'bg-[var(--error)]/20 text-[var(--error)] shadow-[0_0_12px_rgba(239,68,68,0.3)] animate-pulse'
+            : cooldown
+            ? 'text-[var(--text-faint)] opacity-50 cursor-not-allowed'
+            : 'text-[var(--text-muted)] hover:bg-[rgba(255,255,255,0.06)] hover:text-[var(--text)]'
+        )}
+      >
+        {listening ? <MicOff size={18} /> : <Mic size={18} />}
+      </button>
+    </div>
   );
 }
