@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { wsClient } from '@/lib/ws';
+import { useHermesStore } from './useHermesStore';
 
 export interface ChatMessage {
   id: string;
@@ -48,6 +49,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const { addMessage } = get();
     addMessage({ role: 'user', content });
     set({ isTyping: true });
+    useHermesStore.getState().setOrbState('processing', 'Procesando mensaje…');
 
     const sent = wsClient.send({ type: 'message', content });
     if (!sent) {
@@ -82,6 +84,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         streamingBuffer = msg.content;
       } else if (msg.type === 'done' && typeof msg.content === 'string') {
         setTyping(false);
+        useHermesStore.getState().setOrbState('success', 'Respuesta completa');
+        setTimeout(() => useHermesStore.getState().setOrbState('idle'), 2000);
         const content = msg.content || streamingBuffer;
         if (content) {
           addMessage({ role: 'assistant', content });
@@ -90,6 +94,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         lastMessageId = null;
       } else if (msg.type === 'response' || msg.type === 'message') {
         setTyping(false);
+        useHermesStore.getState().setOrbState('success', 'Respuesta completa');
+        setTimeout(() => useHermesStore.getState().setOrbState('idle'), 2000);
         addMessage({
           role: 'assistant',
           content: (msg.content as string) || '',
@@ -99,6 +105,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         addMessage({ role: 'assistant', content: msg.content as string });
       } else if (msg.type === 'error' && typeof msg.content === 'string') {
         setTyping(false);
+        useHermesStore.getState().setOrbState('error', 'Error del servidor');
+        setTimeout(() => useHermesStore.getState().setOrbState('idle'), 3000);
         addMessage({ role: 'system', content: msg.content as string });
       }
     });

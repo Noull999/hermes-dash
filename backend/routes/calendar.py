@@ -6,8 +6,21 @@ from datetime import datetime, timedelta, timezone
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from pydantic import BaseModel
+from typing import Optional
 
 router = APIRouter(dependencies=[Depends(verify_token)])
+
+CHILE_TZ = "America/Santiago"
+
+
+class CreateEventRequest(BaseModel):
+    summary: str
+    description: Optional[str] = ""
+    start: str  # ISO 8601
+    end: str    # ISO 8601
+    location: Optional[str] = ""
+
 
 def get_calendar_service():
     token_path = os.path.expanduser("~/.hermes/google_token.json")
@@ -51,3 +64,40 @@ async def get_events(days: int = Query(7, ge=1, le=30)):
         return {"events": result, "total": len(result)}
     except Exception as e:
         return {"events": [], "total": 0, "error": str(e)}
+
+
+@router.post("/api/calendar")
+async def create_event(req: CreateEventRequest):
+    """Create a new calendar event."""
+    try:
+        service = get_calendar_service()
+        event = {
+            "summary": req.summary,
+            "description": req.description or "",
+            "start": {"dateTime": req.start, "timeZone": CHILE_TZ},
+            "end": {"dateTime": req.end, "timeZone": CHILE_TZ},
+            "reminders": {
+                "useDefault": False,
+                "overrides": [
+                    {"method": "popup", "minutes": 30},
+                    {"method": "email", "minutes": 60},
+                ],
+            },
+        }
+        if req.location:
+            event["location"] = req.location
+
+        created = service.events().insert(calendarId="primary", body=event).execute()
+
+        return {
+            "success": True,
+            "event": {
+                "id": created.get("id", ""),
+                "title": created.get("summary", ""),
+                "start": created.get("start", {}).get("dateTime", ""),
+                "end": created.get("end", {}).get("dateTime", ""),
+                "htmlLink": created.get("htmlLink", ""),
+            },
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
