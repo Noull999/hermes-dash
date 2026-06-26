@@ -184,6 +184,34 @@ def get_repos(_token: str = Depends(verify_token)):
     return merged
 
 
+@router.post("/api/repos/clone")
+async def clone_repo(request: Request, _token: str = Depends(verify_token)):
+    """Clonar un repositorio de GitHub al VPS."""
+    body = await request.json()
+    repo_name = body.get("repo", "")
+    repo_url = body.get("url", "")
+    if not repo_name or not repo_url:
+        raise HTTPException(status_code=400, detail="repo name and url required")
+
+    target = os.path.join(REPO_BASE, repo_name)
+    if os.path.isdir(target):
+        raise HTTPException(status_code=400, detail=f"Repo '{repo_name}' already exists on VPS")
+
+    try:
+        clone = subprocess.run(
+            ["git", "clone", repo_url, target],
+            capture_output=True, text=True, timeout=120,
+        )
+        return {
+            "success": clone.returncode == 0,
+            "output": clone.stdout.strip() or clone.stderr.strip(),
+        }
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="git clone timed out")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/api/repos/pull")
 async def pull_repo(request: Request, _token: str = Depends(verify_token)):
     """Git pull en un repo del VPS."""
@@ -213,5 +241,53 @@ async def pull_repo(request: Request, _token: str = Depends(verify_token)):
         }
     except subprocess.TimeoutExpired:
         raise HTTPException(status_code=504, detail="git pull timed out")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/repos/commit")
+async def commit_repo(request: Request, _token: str = Depends(verify_token)):
+    """Git add -A, commit y push en un repo del VPS."""
+    body = await request.json()
+    repo_name = body.get("repo", "")
+    message = body.get("message", "").strip()
+    if not repo_name:
+        raise HTTPException(status_code=400, detail="repo name required")
+    if not message:
+        raise HTTPException(status_code=400, detail="commit message required")
+
+    repo_dir = os.path.join(REPO_BASE, repo_name)
+    if not os.path.isdir(repo_dir) or not os.path.isdir(os.path.join(repo_dir, ".git")):
+        raise HTTPException(status_code=400, detail=f"Repo '{repo_name}' not found on VPS")
+
+    try:
+        add = subprocess.run(
+            ["git", "add", "-A"],
+            cwd=repo_dir, capture_output=True, text=True, timeout=30,
+        )
+        commit = subprocess.run(
+            ["git", "commit", "-m", message],
+            cwd=repo_dir, capture_output=True, text=True, timeout=30,
+        )
+
+        if commit.returncode != 0 and "nothing to commit" not in commit.stderr:
+            return {
+                "success": False,
+                "output": (commit.stdout or commit.stderr).strip(),
+                "pushed": False,
+            }
+
+        push = subprocess.run(
+            ["git", "push"],
+            cwd=repo_dir, capture_output=True, text=True, timeout=60,
+        )
+
+        return {
+            "success": push.returncode == 0,
+            "output": (push.stdout or push.stderr).strip(),
+            "pushed": push.returncode == 0,
+        }
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="git operation timed out")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

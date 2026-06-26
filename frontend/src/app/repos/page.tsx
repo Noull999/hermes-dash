@@ -73,7 +73,7 @@ export default function ReposPage() {
 
         {repos.map(repo => (
           <div key={repo.name} className="relative">
-            <RepoCard repo={repo} />
+            <RepoCard repo={repo} onClone={loadRepos} />
           </div>
         ))}
       </div>

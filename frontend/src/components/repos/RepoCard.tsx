@@ -2,13 +2,14 @@
 
 import Card from '@/components/ui/Card';
 import MiniOrb from './MiniOrb';
-import { RepoData, pullRepo } from '@/lib/api';
+import { RepoData, pullRepo, cloneRepo, commitRepo } from '@/lib/api';
 import { GitBranch, GitCommitHorizontal, FileWarning, ArrowUpFromLine, ArrowDownToLine, Sparkles, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import ClaudeLauncher from './ClaudeLauncher';
 
 interface RepoCardProps {
   repo: RepoData;
+  onClone?: () => void;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -18,11 +19,19 @@ const STATUS_LABEL: Record<string, string> = {
   unknown: 'SIN DATO',
 };
 
-export default function RepoCard({ repo }: RepoCardProps) {
+export default function RepoCard({ repo, onClone }: RepoCardProps) {
   const [claudeOpen, setClaudeOpen] = useState(false);
   const [pulling, setPulling] = useState(false);
   const [pullResult, setPullResult] = useState<'idle' | 'success' | 'error'>('idle');
   const [pullMsg, setPullMsg] = useState('');
+  const [cloning, setCloning] = useState(false);
+  const [cloneResult, setCloneResult] = useState<'idle' | 'success' | 'error'>('idle');
+  const [cloneMsg, setCloneMsg] = useState('');
+  const [showCommit, setShowCommit] = useState(false);
+  const [commitMsg, setCommitMsg] = useState('');
+  const [committing, setCommitting] = useState(false);
+  const [commitResult, setCommitResult] = useState<'idle' | 'success' | 'error'>('idle');
+  const [commitOutput, setCommitOutput] = useState('');
 
   const handlePull = async () => {
     setPulling(true);
@@ -45,6 +54,59 @@ export default function RepoCard({ repo }: RepoCardProps) {
       setTimeout(() => { setPullResult('idle'); setPullMsg(''); }, 4000);
     }
   };
+  const handleClone = async () => {
+    setCloning(true);
+    setCloneResult('idle');
+    setCloneMsg('');
+    let cloned = false;
+    try {
+      const res = await cloneRepo(repo.name, repo.github_url);
+      if (res.success) {
+        setCloneResult('success');
+        setCloneMsg(res.output || 'Repo clonado');
+        cloned = true;
+      } else {
+        setCloneResult('error');
+        setCloneMsg(res.output || 'Error al clonar');
+      }
+    } catch (err) {
+      setCloneResult('error');
+      setCloneMsg((err as Error).message);
+    } finally {
+      setCloning(false);
+      if (cloned) {
+        setTimeout(() => { onClone?.(); }, 1200);
+      } else {
+        setTimeout(() => { setCloneResult('idle'); setCloneMsg(''); }, 5000);
+      }
+    }
+  };
+
+  const handleCommit = async () => {
+    if (!commitMsg.trim()) return;
+    setCommitting(true);
+    setCommitResult('idle');
+    setCommitOutput('');
+    try {
+      const res = await commitRepo(repo.name, commitMsg.trim());
+      if (res.success) {
+        setCommitResult('success');
+        setCommitOutput(res.output || 'Commiteado y pusheado ✅');
+      } else {
+        setCommitResult('error');
+        setCommitOutput(res.output || 'Error al commitar');
+      }
+    } catch (err) {
+      setCommitResult('error');
+      setCommitOutput((err as Error).message);
+    } finally {
+      setCommitting(false);
+      setShowCommit(false);
+      setCommitMsg('');
+      setTimeout(() => { setCommitResult('idle'); setCommitOutput(''); onClone?.(); }, 3000);
+    }
+  };
+
   const statusColor =
     repo.status === 'synced' ? 'var(--success)'
     : repo.status === 'behind' ? 'var(--amber)'
@@ -101,30 +163,94 @@ export default function RepoCard({ repo }: RepoCardProps) {
 
         {/* actions */}
         <div className="flex items-center gap-2 flex-wrap">
-          {pullMsg && (
-            <div className={`w-full text-[10px] px-2 py-1 rounded mb-1 ${
-              pullResult === 'success'
-                ? 'text-[var(--success)] bg-[rgba(93,255,176,0.06)]'
-                : 'text-[var(--error)] bg-[rgba(255,93,108,0.06)]'
-            }`}>
-              {pullResult === 'success' ? <CheckCircle2 size={10} className="inline mr-1" /> : <XCircle size={10} className="inline mr-1" />}
-              {pullMsg.slice(0, 120)}
-            </div>
+          {repo.on_vps ? (
+            <>
+              {pullMsg && (
+                <div className={`w-full text-[10px] px-2 py-1 rounded mb-1 ${
+                  pullResult === 'success'
+                    ? 'text-[var(--success)] bg-[rgba(93,255,176,0.06)]'
+                    : 'text-[var(--error)] bg-[rgba(255,93,108,0.06)]'
+                }`}>
+                  {pullResult === 'success' ? <CheckCircle2 size={10} className="inline mr-1" /> : <XCircle size={10} className="inline mr-1" />}
+                  {pullMsg.slice(0, 120)}
+                </div>
+              )}
+              <button
+                onClick={handlePull}
+                disabled={pulling}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-[var(--hairline-strong)] bg-[rgba(79,227,255,0.08)] text-[var(--cyan)] hud-label text-[9px] hover:bg-[rgba(79,227,255,0.14)] transition-all disabled:opacity-50"
+              >
+                {pulling ? <Loader2 size={11} className="animate-spin" /> : <ArrowDownToLine size={11} />}
+                {pulling ? 'PULLING...' : 'PULL VPS'}
+              </button>
+              <button
+                onClick={() => setClaudeOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-[rgba(255,177,61,0.3)] bg-[rgba(255,177,61,0.08)] text-[var(--amber)] hud-label text-[9px] hover:bg-[rgba(255,177,61,0.14)] transition-all"
+              >
+                <Sparkles size={11} />CLAUDE
+              </button>
+              {repo.dirty && !showCommit && (
+                <button
+                  onClick={() => setShowCommit(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-[rgba(93,255,176,0.3)] bg-[rgba(93,255,176,0.08)] text-[var(--success)] hud-label text-[9px] hover:bg-[rgba(93,255,176,0.14)] transition-all"
+                >
+                  <GitCommitHorizontal size={11} />COMMIT
+                </button>
+              )}
+              {showCommit && (
+                <div className="w-full flex items-center gap-2 mt-1">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={commitMsg}
+                    onChange={(e) => setCommitMsg(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleCommit()}
+                    placeholder="Mensaje del commit..."
+                    className="flex-1 text-[10px] px-2 py-1.5 rounded-[2px] bg-[rgba(0,0,0,0.3)] border border-[var(--hairline-strong)] text-[var(--text)] outline-none focus:border-[var(--cyan)]"
+                  />
+                  <button
+                    onClick={handleCommit}
+                    disabled={committing || !commitMsg.trim()}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-[2px] bg-[rgba(93,255,176,0.15)] text-[var(--success)] hud-label text-[9px] hover:bg-[rgba(93,255,176,0.25)] transition-all disabled:opacity-40"
+                  >
+                    {committing ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle2 size={11} />}
+                    {committing ? 'ENVIANDO...' : '→'}
+                  </button>
+                </div>
+              )}
+              {commitOutput && (
+                <div className={`w-full text-[10px] px-2 py-1 rounded ${
+                  commitResult === 'success'
+                    ? 'text-[var(--success)] bg-[rgba(93,255,176,0.06)]'
+                    : 'text-[var(--error)] bg-[rgba(255,93,108,0.06)]'
+                }`}>
+                  {commitResult === 'success' ? <CheckCircle2 size={10} className="inline mr-1" /> : <XCircle size={10} className="inline mr-1" />}
+                  {commitOutput.slice(0, 120)}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {cloneMsg && (
+                <div className={`w-full text-[10px] px-2 py-1 rounded mb-1 ${
+                  cloneResult === 'success'
+                    ? 'text-[var(--success)] bg-[rgba(93,255,176,0.06)]'
+                    : 'text-[var(--error)] bg-[rgba(255,93,108,0.06)]'
+                }`}>
+                  {cloneResult === 'success' ? <CheckCircle2 size={10} className="inline mr-1" /> : <XCircle size={10} className="inline mr-1" />}
+                  {cloneMsg.slice(0, 120)}
+                </div>
+              )}
+              <button
+                onClick={handleClone}
+                disabled={cloning}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-[rgba(79,227,255,0.3)] bg-[rgba(79,227,255,0.08)] text-[var(--cyan)] hud-label text-[9px] hover:bg-[rgba(79,227,255,0.14)] transition-all disabled:opacity-50"
+              >
+                {cloning ? <Loader2 size={11} className="animate-spin" /> : <GitBranch size={11} />}
+                {cloning ? 'CLONANDO...' : 'CLONAR EN VPS'}
+              </button>
+            </>
           )}
-          <button
-            onClick={handlePull}
-            disabled={pulling}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-[var(--hairline-strong)] bg-[rgba(79,227,255,0.08)] text-[var(--cyan)] hud-label text-[9px] hover:bg-[rgba(79,227,255,0.14)] transition-all disabled:opacity-50"
-          >
-            {pulling ? <Loader2 size={11} className="animate-spin" /> : <ArrowDownToLine size={11} />}
-            {pulling ? 'PULLING...' : 'PULL VPS'}
-          </button>
-          <button
-            onClick={() => setClaudeOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-[rgba(255,177,61,0.3)] bg-[rgba(255,177,61,0.08)] text-[var(--amber)] hud-label text-[9px] hover:bg-[rgba(255,177,61,0.14)] transition-all"
-          >
-            <Sparkles size={11} />CLAUDE
-          </button>
         </div>
       </Card>
 

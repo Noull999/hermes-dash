@@ -91,6 +91,13 @@ export type RepoSyncStatus = 'synced' | 'behind' | 'ahead' | 'unknown' | string;
 
 export interface RepoData {
   name: string;
+  github_url: string;
+  description: string;
+  language: string;
+  updated_at: string;
+  private: boolean;
+  fork: boolean;
+  on_vps: boolean;
   branch: string;
   vps_commit: string;
   vps_message: string;
@@ -108,6 +115,20 @@ export async function pullRepo(repoName: string) {
   return request<{ success: boolean; output: string; fetch: string }>('/api/repos/pull', {
     method: 'POST',
     body: JSON.stringify({ repo: repoName }),
+  });
+}
+
+export async function commitRepo(repoName: string, message: string) {
+  return request<{ success: boolean; output: string; pushed: boolean }>('/api/repos/commit', {
+    method: 'POST',
+    body: JSON.stringify({ repo: repoName, message }),
+  });
+}
+
+export async function cloneRepo(repoName: string, repoUrl: string) {
+  return request<{ success: boolean; output: string }>('/api/repos/clone', {
+    method: 'POST',
+    body: JSON.stringify({ repo: repoName, url: repoUrl }),
   });
 }
 

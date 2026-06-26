@@ -47,9 +47,10 @@ export const mockSystemData: SystemData = {
 
 // ── Repos ─────────────────────────────────────────────────────────────────
 export const mockRepoData: RepoData[] = [
-  { name: 'hermes-dash', branch: 'main', vps_commit: 'abc1234', vps_message: 'Add dashboard API routes', dirty: false, status: 'synced', behind: 0, ahead: 0 },
-  { name: 'Jarvis', branch: 'main', vps_commit: 'def4567', vps_message: 'Merge savings dashboard', dirty: true, status: 'behind', behind: 2, ahead: 0 },
-  { name: 'multi-agentes', branch: 'main', vps_commit: 'ghi7890', vps_message: 'Fix LLM prefix', dirty: false, status: 'synced', behind: 0, ahead: 0 },
+  { name: 'hermes-dash', github_url: 'https://github.com/Noull999/hermes-dash', description: 'Dashboard Hermes', language: 'TypeScript', updated_at: '2026-06-26T16:00:00Z', private: false, fork: false, on_vps: true, branch: 'main', vps_commit: 'abc1234', vps_message: 'Add dashboard API routes', dirty: false, status: 'synced', behind: 0, ahead: 0 },
+  { name: 'Jarvis', github_url: 'https://github.com/Noull999/Jarvis', description: 'AI assistant', language: 'Python', updated_at: '2026-06-25T12:00:00Z', private: false, fork: false, on_vps: true, branch: 'main', vps_commit: 'def4567', vps_message: 'Merge savings dashboard', dirty: true, status: 'behind', behind: 2, ahead: 0 },
+  { name: 'multi-agentes', github_url: 'https://github.com/Noull999/multi-agentes', description: 'Multi-agent system', language: 'Python', updated_at: '2026-06-24T10:00:00Z', private: false, fork: false, on_vps: true, branch: 'main', vps_commit: 'ghi7890', vps_message: 'Fix LLM prefix', dirty: false, status: 'synced', behind: 0, ahead: 0 },
+  { name: 'proyecto-administrativo', github_url: 'https://github.com/Noull999/proyecto-administrativo', description: 'Administrative project', language: 'Python', updated_at: '2026-06-23T08:00:00Z', private: false, fork: false, on_vps: false, branch: 'main', vps_commit: '', vps_message: '', dirty: false, status: 'not-cloned', behind: 0, ahead: 0 },
 ];
 
 // ── Timeline ──────────────────────────────────────────────────────────────

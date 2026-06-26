@@ -6,7 +6,7 @@ import Card from '@/components/ui/Card';
 
 const API = '/api/proxy';
 
-function urlBase64ToUint8Array(base64: string): Uint8Array {
+function urlBase64ToUint8Array(base64: string): BufferSource {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4);
   const b64 = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
   const raw = window.atob(b64);
