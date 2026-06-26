@@ -1,7 +1,7 @@
 import { useLogStore } from '@/store/useLogStore';
 
 type MessageHandler = (data: unknown) => void;
-type StatusHandler = (status: 'connected' | 'disconnected' | 'reconnecting') => void;
+type StatusHandler = (status: 'connected' | 'disconnected' | 'reconnecting' | 'timeout') => void;
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080/api/chat';
 const RECONNECT_DELAY = 3000;
@@ -13,13 +13,16 @@ class WebSocketClient {
   private statusHandlers: Set<StatusHandler> = new Set();
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private connectTimer: ReturnType<typeof setTimeout> | null = null;
   private shouldReconnect = true;
+  private connectingSince = 0;
 
   connect() {
     if (this.ws?.readyState === WebSocket.OPEN) return;
 
     try {
       this.ws = new WebSocket(WS_URL);
+      this.connectingSince = Date.now();
       useLogStore.getState().addLog({
         level: 'info', source: 'ws',
         message: `Conectando WS...`,
@@ -36,7 +39,21 @@ class WebSocketClient {
       return;
     }
 
+    // Timeout: si no conecta en 10s, notificar
+    this.connectTimer = setTimeout(() => {
+      if (this.ws?.readyState !== WebSocket.OPEN) {
+        this.notifyStatus('timeout');
+        useLogStore.getState().addLog({
+          level: 'warn', source: 'ws',
+          message: 'Timeout de conexión WS (10s)',
+        });
+        this.ws?.close();
+        this.scheduleReconnect();
+      }
+    }, 10000);
+
     this.ws.onopen = () => {
+      if (this.connectTimer) { clearTimeout(this.connectTimer); this.connectTimer = null; }
       this.reconnectAttempts = 0;
       this.notifyStatus('connected');
       useLogStore.getState().addLog({
@@ -61,6 +78,7 @@ class WebSocketClient {
     };
 
     this.ws.onclose = () => {
+      if (this.connectTimer) { clearTimeout(this.connectTimer); this.connectTimer = null; }
       this.notifyStatus('disconnected');
       this.ws = null;
       if (this.shouldReconnect) {
@@ -72,6 +90,7 @@ class WebSocketClient {
     };
 
     this.ws.onerror = () => {
+      if (this.connectTimer) { clearTimeout(this.connectTimer); this.connectTimer = null; }
       useLogStore.getState().addLog({
         level: 'error', source: 'ws', message: 'Error en WebSocket',
       });
@@ -80,6 +99,7 @@ class WebSocketClient {
 
   disconnect() {
     this.shouldReconnect = false;
+    if (this.connectTimer) { clearTimeout(this.connectTimer); this.connectTimer = null; }
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;

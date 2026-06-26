@@ -40,6 +40,7 @@ export default function HomePage() {
   // ── Chat ──
   const messages = useChatStore((s) => s.messages);
   const isConnected = useChatStore((s) => s.isConnected);
+  const connectionStatus = useChatStore((s) => s.connectionStatus);
   const isTyping = useChatStore((s) => s.isTyping);
   const connect = useChatStore((s) => s.connect);
   const disconnect = useChatStore((s) => s.disconnect);
@@ -98,10 +99,21 @@ export default function HomePage() {
           <span className="text-sm font-bold tracking-[0.18em] text-[var(--text)]">
             HERMES
           </span>
-          {isConnected ? (
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)] shadow-[0_0_6px_var(--success)]" />
+          {connectionStatus === 'connected' ? (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)] shadow-[0_0_6px_var(--success)]" />
+              <span className="text-[9px] text-[var(--text-muted)] hidden sm:inline">ON</span>
+            </>
+          ) : connectionStatus === 'connecting' ? (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)] animate-pulse" />
+              <span className="text-[9px] text-[var(--warning)] hidden sm:inline">CONECTANDO</span>
+            </>
           ) : (
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--error)]" />
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--error)]" />
+              <span className="text-[9px] text-[var(--error)] hidden sm:inline">SIN CONEXIÓN</span>
+            </>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -118,6 +130,26 @@ export default function HomePage() {
           />
         </div>
       </div>
+
+      {/* ── Banner de conexión ── */}
+      {(connectionStatus === 'timeout' || connectionStatus === 'disconnected') && (
+        <div className="flex items-center justify-between px-4 py-1.5 bg-[rgba(255,93,108,0.08)] border-b border-[rgba(255,93,108,0.15)] shrink-0">
+          <div className="flex items-center gap-2">
+            <WifiOff size={12} className="text-[var(--error)]" />
+            <span className="text-[10px] text-[var(--error)]">
+              {connectionStatus === 'timeout'
+                ? 'No se pudo conectar al servidor'
+                : 'Servidor no disponible'}
+            </span>
+          </div>
+          <button
+            onClick={() => connect()}
+            className="text-[10px] px-2 py-0.5 rounded border border-[rgba(255,93,108,0.3)] text-[var(--error)] hover:bg-[rgba(255,93,108,0.1)] transition-all"
+          >
+            RECONECTAR
+          </button>
+        </div>
+      )}
 
       {/* ── Scrollable content ── */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">

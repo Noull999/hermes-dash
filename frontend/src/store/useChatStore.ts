@@ -14,12 +14,14 @@ interface ChatState {
   messages: ChatMessage[];
   isConnected: boolean;
   isTyping: boolean;
+  connectionStatus: 'connected' | 'connecting' | 'disconnected' | 'timeout';
 
   // Actions
   addMessage: (msg: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
   sendMessage: (content: string) => void;
   setTyping: (typing: boolean) => void;
   setConnected: (connected: boolean) => void;
+  setConnectionStatus: (status: ChatState['connectionStatus']) => void;
   connect: () => void;
   disconnect: () => void;
   clearMessages: () => void;
@@ -35,6 +37,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   isConnected: false,
   isTyping: false,
+  connectionStatus: 'disconnected',
 
   addMessage: (msg) => {
     const newMsg: ChatMessage = {
@@ -66,10 +69,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setConnected: (connected) => set({ isConnected: connected }),
 
+  setConnectionStatus: (status) => set({
+    connectionStatus: status,
+    isConnected: status === 'connected',
+  }),
+
   connect: () => {
     // Acumulador de chunks streaming
     let streamingBuffer = '';
     let lastMessageId: string | null = null;
+
+    set({ connectionStatus: 'connecting' });
 
     const unsubMessage = wsClient.onMessage((data: unknown) => {
       const msg = data as Record<string, unknown>;
@@ -112,9 +122,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
 
     const unsubStatus = wsClient.onStatus((status) => {
+      const s = get();
       set({
+        connectionStatus: status === 'connected' ? 'connected' : status === 'timeout' ? 'timeout' : 'disconnected',
         isConnected: status === 'connected',
-        isTyping: status === 'reconnecting' ? false : get().isTyping,
+        isTyping: status === 'reconnecting' ? false : s.isTyping,
       });
     });
 
