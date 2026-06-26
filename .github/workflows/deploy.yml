@@ -1,0 +1,20 @@
+name: Auto Deploy
+on:
+  push:
+    branches: [main]
+jobs:
+  vercel:
+    name: Deploy Frontend to Vercel
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl -s -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}"
+
+  vps:
+    name: Sync Backend on VPS
+    runs-on: ubuntu-latest
+    steps:
+      - run: >
+          curl -s -m 30 -X POST "${{ secrets.VPS_DEPLOY_URL }}"
+          -H "Authorization: Bearer *** secrets.VPS_DEPLOY_KEY }}"
+          -H "Content-Type: application/json"
+          -d '{"ref":"main"}'

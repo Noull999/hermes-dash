@@ -21,6 +21,7 @@ from routes.calendar import router as calendar_router
 from routes.jobs import router as jobs_router
 from routes.push import router as push_router
 from routes.gamification import router as gamification_router
+from routes.webhook import router as webhook_router
 from chat_ws import router as chat_ws_router
 
 app = FastAPI(
@@ -67,4 +68,5 @@ app.include_router(calendar_router)
 app.include_router(jobs_router)
 app.include_router(push_router)
 app.include_router(gamification_router)
+app.include_router(webhook_router)
 app.include_router(chat_ws_router)
