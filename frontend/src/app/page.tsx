@@ -12,7 +12,7 @@ import { useHermesStore } from '@/store/useHermesStore';
 import { getTimeOfDay, classNames } from '@/lib/utils';
 import DebugPanel from '@/components/DebugPanel';
 import {
-  Wifi, WifiOff, Mic, Sparkles,
+  Wifi, WifiOff, Mic, Sparkles, Volume2, VolumeX,
   BarChart3, FolderGit2, Mail, CalendarDays, Briefcase, Brain, Settings,
 } from 'lucide-react';
 
@@ -54,8 +54,11 @@ export default function HomePage() {
 
   // ── Voice ──
   const [micActive, setMicActive] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(true);
   const [orbCompact, setOrbCompact] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const prevMsgCount = useRef(0);
+  const ttsSpeakingRef = useRef(false);
 
   const hasMessages = messages.length > 0;
 
@@ -80,6 +83,48 @@ export default function HomePage() {
     el.addEventListener('scroll', handler, { passive: true });
     return () => el.removeEventListener('scroll', handler);
   }, []);
+
+  // ── TTS: speak new assistant messages ──
+  useEffect(() => {
+    if (!ttsEnabled) return;
+    if (messages.length <= prevMsgCount.current) {
+      prevMsgCount.current = messages.length;
+      return;
+    }
+    const last = messages[messages.length - 1];
+    if (last.role !== 'assistant' || !last.content || ttsSpeakingRef.current) {
+      prevMsgCount.current = messages.length;
+      return;
+    }
+
+    prevMsgCount.current = messages.length;
+
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+
+    // Cancel any previous speech
+    synth.cancel();
+
+    const utter = new SpeechSynthesisUtterance(last.content);
+    utter.lang = 'es-CL';
+    utter.rate = 1.0;
+    utter.pitch = 1.0;
+    utter.volume = 1.0;
+
+    // Try to find a Spanish voice
+    const voices = synth.getVoices();
+    const esVoice = voices.find(
+      (v) => v.lang.startsWith('es') && v.name.toLowerCase().includes('spanish'),
+    ) || voices.find((v) => v.lang.startsWith('es'));
+    if (esVoice) utter.voice = esVoice;
+
+    ttsSpeakingRef.current = true;
+    utter.onstart = () => { ttsSpeakingRef.current = true; };
+    utter.onend = () => { ttsSpeakingRef.current = false; };
+    utter.onerror = () => { ttsSpeakingRef.current = false; };
+
+    synth.speak(utter);
+  }, [messages, ttsEnabled]);
 
   // Voice → auto-send
   const handleVoiceResult = (text: string) => {
@@ -111,6 +156,17 @@ export default function HomePage() {
               ESCUCHANDO
             </span>
           )}
+          <button
+            onClick={() => setTtsEnabled(!ttsEnabled)}
+            className={`p-1.5 rounded-lg transition-all ${
+              ttsEnabled
+                ? 'text-[var(--cyan)] hover:bg-[rgba(0,212,255,0.1)]'
+                : 'text-[var(--text-faint)] hover:text-[var(--text-muted)]'
+            }`}
+            title={ttsEnabled ? 'Respuesta por voz activada' : 'Respuesta por voz desactivada'}
+          >
+            {ttsEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+          </button>
           <VoiceButton
             onResult={handleVoiceResult}
             autoStart={!hasMessages}
