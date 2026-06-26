@@ -20,6 +20,12 @@ out/
 *.swp
 *.swo
 
+# Vercel
+.vercel/
+
+# Secrets
+scripts/tunnel.env
+
 # OS
 .DS_Store
 Thumbs.db
