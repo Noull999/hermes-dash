@@ -164,20 +164,14 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* ── Dashboard widgets ── */}
-        <div className="px-4 space-y-4">
+        {/* ── Dashboard widgets — single column on mobile, 2-col grid on desktop ── */}
+        <div className="px-4 space-y-4 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-4 lg:items-start">
           <WeatherWidget />
-
           <TokenCard />
-
-          {/* System + Today */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <SystemCard />
-            <TodayCard />
-          </div>
-
-          <WeeklyChart />
-          <TimelineCard />
+          <SystemCard />
+          <TodayCard />
+          <div className="lg:col-span-2"><WeeklyChart /></div>
+          <div className="lg:col-span-2"><TimelineCard /></div>
         </div>
 
         {/* ── Second brain link ── */}

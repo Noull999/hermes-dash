@@ -303,7 +303,7 @@ export default function HomePage() {
       {/* ── Bottom Nav ── */}
       <DebugPanel />
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--void)]/92 backdrop-blur-xl border-t border-[var(--hairline)] safe-area-bottom">
-        <div className="max-w-lg mx-auto flex items-center justify-start overflow-x-auto gap-0.5 h-[60px] px-2 scrollbar-none snap-x snap-mandatory">
+        <div className="max-w-lg mx-auto flex items-center justify-between h-[60px] px-1">
           {navTabs.map(({ href, label, Icon }) => {
             const isActive = pathname === href;
             return (
@@ -311,7 +311,7 @@ export default function HomePage() {
                 key={href}
                 href={href}
                 className={classNames(
-                  'group relative flex flex-col items-center gap-1 px-2.5 py-1.5 transition-all duration-200 snap-start flex-shrink-0',
+                  'group relative flex flex-1 flex-col items-center gap-1 px-0.5 py-1.5 transition-all duration-200',
                   isActive
                     ? 'text-[var(--cyan)]'
                     : 'text-[var(--text-faint)] hover:text-[var(--text-muted)]',

@@ -298,6 +298,14 @@ html, body {
   padding: 16px 16px 96px;
   min-height: 100vh;
 }
+/* On wide screens, use the real estate: more width + breathing room.
+   Pages that want a tighter column still wrap their content in max-w-* . */
+@media (min-width: 1024px) {
+  .page-container {
+    max-width: 1120px;
+    padding: 28px 32px 48px;
+  }
+}
 .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
 
 /* ── Sessions panel slide-in ──────────────────────────────────────────── */
@@ -307,4 +315,19 @@ html, body {
 }
 .animate-slide-in {
   animation: slideIn 0.2s ease-out;
+}
+
+/* Respect users who prefer less motion — kill the ambient sweeps/spins. */
+@media (prefers-reduced-motion: reduce) {
+  .hud-scan,
+  .reticle,
+  .reticle-rev,
+  .pulse-glow { animation: none !important; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
