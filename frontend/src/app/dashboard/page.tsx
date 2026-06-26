@@ -96,12 +96,11 @@ export default function DashboardPage() {
 
         {/* ── Dashboard widgets ── */}
         <div className="px-4 space-y-4">
+          <WeatherWidget />
+
           <TokenCard />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <SystemCard />
-            <WeatherWidget />
-          </div>
+          <SystemCard />
 
           <WeeklyChart />
           <TimelineCard />
