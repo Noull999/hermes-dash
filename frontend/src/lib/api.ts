@@ -283,6 +283,24 @@ export async function getJobs() {
   return request<JobsResponse>('/api/jobs');
 }
 
+// ── Sessions ──────────────────────────────────────────────────────────
+export interface SessionInfo {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  preview: string;
+  message_count: number;
+}
+
+export async function getSessions(): Promise<SessionInfo[]> {
+  return request<SessionInfo[]>('/api/sessions');
+}
+
+export async function deleteSession(id: string): Promise<void> {
+  return request<void>(`/api/sessions/${id}`, { method: 'DELETE' });
+}
+
 // ── Push ──────────────────────────────────────────────────────────────────
 export interface PushSubscriptionsResponse {
   subscriptions: unknown[];

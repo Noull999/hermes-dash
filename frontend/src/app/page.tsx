@@ -7,6 +7,7 @@ import OrbCanvas from '@/components/orb/OrbCanvas';
 import Message from '@/components/chat/Message';
 import InputBox from '@/components/chat/InputBox';
 import VoiceButton from '@/components/chat/VoiceButton';
+import SessionsPanel from '@/components/chat/SessionsPanel';
 import { useChatStore } from '@/store/useChatStore';
 import { useHermesStore } from '@/store/useHermesStore';
 import { getTimeOfDay, classNames } from '@/lib/utils';
@@ -60,6 +61,15 @@ export default function HomePage() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const hasMessages = messages.length > 0;
+
+  // ── Sessions ──
+  const [currentSessionId, setCurrentSessionId] = useState('');
+
+  const handleSelectSession = useCallback((id: string) => {
+    setCurrentSessionId(id);
+    // Clear messages on session switch (WS reconnect will load history)
+    useChatStore.getState().clearMessages();
+  }, []);
 
   // Auto-connect
   useEffect(() => {
@@ -118,6 +128,10 @@ export default function HomePage() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <SessionsPanel
+            currentSessionId={currentSessionId}
+            onSelectSession={handleSelectSession}
+          />
           {micActive && (
             <span className="text-[11px] text-[var(--cyan)] flex items-center gap-1 animate-pulse">
               <Mic size={10} />

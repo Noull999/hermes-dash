@@ -299,3 +299,12 @@ html, body {
   min-height: 100vh;
 }
 .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
+
+/* ── Sessions panel slide-in ──────────────────────────────────────────── */
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+.animate-slide-in {
+  animation: slideIn 0.2s ease-out;
+}
