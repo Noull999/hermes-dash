@@ -28,6 +28,8 @@ interface ChatState {
 }
 
 let msgCounter = 0;
+let _unsubMessage: (() => void) | null = null;
+let _unsubStatus: (() => void) | null = null;
 function nextId() {
   msgCounter++;
   return `msg_${Date.now()}_${msgCounter}`;
@@ -75,13 +77,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
   }),
 
   connect: () => {
+    // Limpiar handlers previos para evitar duplicados
+    if (_unsubMessage) { _unsubMessage(); _unsubMessage = null; }
+    if (_unsubStatus) { _unsubStatus(); _unsubStatus = null; }
+
     // Acumulador de chunks streaming
     let streamingBuffer = '';
     let lastMessageId: string | null = null;
 
     set({ connectionStatus: 'connecting' });
 
-    const unsubMessage = wsClient.onMessage((data: unknown) => {
+    _unsubMessage = wsClient.onMessage((data: unknown) => {
       const msg = data as Record<string, unknown>;
       const { addMessage, setTyping, messages } = get();
 
@@ -121,7 +127,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     });
 
-    const unsubStatus = wsClient.onStatus((status) => {
+    _unsubStatus = wsClient.onStatus((status) => {
       const s = get();
       set({
         connectionStatus: status === 'connected' ? 'connected' : status === 'timeout' ? 'timeout' : 'disconnected',
@@ -135,6 +141,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   disconnect: () => {
+    if (_unsubMessage) { _unsubMessage(); _unsubMessage = null; }
+    if (_unsubStatus) { _unsubStatus(); _unsubStatus = null; }
     wsClient.disconnect();
     set({ isConnected: false });
   },
