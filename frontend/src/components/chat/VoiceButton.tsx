@@ -58,6 +58,7 @@ const DEBOUNCE_MS = 3000;       // max 1 envío cada 3s
 const INACTIVITY_TIMEOUT = 15000; // 15s sin voz válida → pausa
 const COOLDOWN_MS = 10000;       // pausa de 10s tras inactividad
 const SILENCE_MS = 2000;         // 2s de silencio antes de enviar
+const RESTART_BLOCK_MS = 7000;   // 7s sin auto-restart tras enviar (evita duplicados por ruido residual)
 
 function isNoise(text: string): boolean {
   const t = text.trim();
@@ -88,6 +89,7 @@ export default function VoiceButton({
   const finalBufferRef = useRef(''); // acumula texto final hasta que haya silencio
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userStoppedRef = useRef(false); // true si el usuario apagó manualmente el mic
+  const restartBlockedUntilRef = useRef(0); // timestamp hasta el que se bloquea auto-restart
 
   // ── Resetear timer de inactividad ──
   const resetInactivity = useCallback(() => {
@@ -160,6 +162,14 @@ export default function VoiceButton({
           return;
         }
 
+        // Si estamos en período de bloqueo post-envío, descartar (ruido residual)
+        if (Date.now() < restartBlockedUntilRef.current) {
+          finalBufferRef.current = '';
+          setInterimText('');
+          setAccumulatedText('');
+          return;
+        }
+
         // Resetear timer de silencio — solo envía si hay Ns sin nuevo texto final
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = setTimeout(() => {
@@ -205,24 +215,28 @@ export default function VoiceButton({
 
       // Si hay texto pendiente en el buffer, enviarlo AHORA antes de que se pierda
       const pendingText = finalBufferRef.current.trim();
-      if (pendingText && !isNoise(pendingText) && !userStoppedRef.current) {
+      const didSend = pendingText && !isNoise(pendingText) && !userStoppedRef.current;
+      if (didSend) {
         const now = Date.now();
         if (now - lastSendRef.current >= DEBOUNCE_MS) {
           lastSendRef.current = now;
           hasSentRef.current = true;
           onResult(pendingText);
+          // Bloquear auto-restart para evitar que el nuevo ciclo capture ruido residual
+          restartBlockedUntilRef.current = now + RESTART_BLOCK_MS;
         }
       }
 
       // Solo limpiar el display si NO va a auto-reiniciarse
-      const willRestart = autoStart && !permissionDenied && !cooldown && !userStoppedRef.current;
+      const willRestart = autoStart && !permissionDenied && !cooldown && !userStoppedRef.current
+        && Date.now() >= restartBlockedUntilRef.current;
       if (!willRestart) {
         setInterimText('');
         setAccumulatedText('');
       }
       finalBufferRef.current = '';
 
-      // Auto-start: reiniciar si aplica (solo si no lo apagó el usuario)
+      // Auto-start: reiniciar si aplica (solo si no lo apagó el usuario y no acabamos de enviar)
       if (willRestart) {
         setTimeout(() => {
           if (!listeningRef.current) {
@@ -255,7 +269,8 @@ export default function VoiceButton({
 
   // ── Auto-start (se re-evalúa al salir de cooldown) ──
   useEffect(() => {
-    if (autoStart && recognitionRef.current && !listeningRef.current && !cooldown && !permissionDenied) {
+    if (autoStart && recognitionRef.current && !listeningRef.current && !cooldown && !permissionDenied
+        && Date.now() >= restartBlockedUntilRef.current) {
       const delay = setTimeout(() => {
         try {
           recognitionRef.current?.start();
