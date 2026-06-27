@@ -52,7 +52,7 @@ const FILLER = /^(uh|ah|mm|hm|eh|ok|sí|si|no|a|e|o|u|)$/i;
 const MIN_LENGTH = 3;
 const SILENCE_MS = 2000;
 const DEDUP_WINDOW_MS = 10000;
-const RESTART_DELAY_MS = 300;
+const RESTART_DELAY_MS = 350;
 
 function isNoise(text: string): boolean {
   const t = text.trim();
@@ -63,17 +63,27 @@ function isNoise(text: string): boolean {
   return false;
 }
 
+function getSpeechRecognitionCtor(): SpeechRecognitionConstructor | null {
+  if (typeof window === 'undefined') return null;
+  const w = window as unknown as Record<string, unknown>;
+  return (w.SpeechRecognition || w.webkitSpeechRecognition) as SpeechRecognitionConstructor | null;
+}
+
 /**
- * VoiceButton — reconocimiento de voz continuo.
+ * VoiceButton — reconocimiento de voz continuo con instancias descartables.
  *
- * REGLA CRÍTICA: Chrome corrompe SpeechRecognition si se llama .start() más de
- * una vez en la misma instancia. Cada ciclo DEBE usar una instancia nueva.
+ * Chrome corrompe SpeechRecognition si se llama .start() en una instancia
+ * que ya disparó onend. Cada ciclo usa una instancia NUEVA.
+ *
+ * Estado:
+ *  - wantListening: intención del usuario (quiere el mic activo)
+ *  - instanceId: contador para identificar cada instancia y evitar race conditions
  *
  * Flujo:
- *  1. Usuario activa → wantListening=true → crear instancia → .start()
+ *  1. Usuario activa → wantListening=true → createAndStart()
  *  2. Chrome emite onresult → acumular texto final + mostrar interim
- *  3. Silencio de 2s → flush (enviar texto acumulado con dedup)
- *  4. onend dispara → SI wantListening: crear NUEVA instancia → .start()
+ *  3. Silencio 2s → flush (enviar texto acumulado con dedup)
+ *  4. onend → instancia muerta, SI wantListening: setTimeout → createAndStart()
  *  5. Usuario desactiva → wantListening=false → .stop() → onend NO reinicia
  */
 export default function VoiceButton({
@@ -87,17 +97,25 @@ export default function VoiceButton({
   const [interimText, setInterimText] = useState('');
   const [accumulatedText, setAccumulatedText] = useState('');
 
-  // Refs estables
-  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  // Estado de intención — persiste entre instancias
   const wantListeningRef = useRef(false);
   const permissionDeniedRef = useRef(false);
+
+  // Instancia actual — NUNCA reusar después de onend
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+
+  // ID de instancia — evita que callbacks de instancias muertas afecten el estado
+  const instanceIdRef = useRef(0);
+
+  // Timers
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Dedup por contenido
   const lastSentTextRef = useRef('');
   const lastSentTimeRef = useRef(0);
 
-  // Buffer de texto final acumulado (persiste entre eventos onresult de la misma sesión)
+  // Buffer de sesión
   const sessionBufferRef = useRef('');
 
   // Callbacks frescos
@@ -106,8 +124,17 @@ export default function VoiceButton({
   useEffect(() => { onResultRef.current = onResult; }, [onResult]);
   useEffect(() => { onActiveChangeRef.current = onActiveChange; }, [onActiveChange]);
 
-  // Ref para acceder a start() desde onend sin causar re-renders
-  const startRef = useRef<() => void>(() => {});
+  // ── Limpia todos los timers ──
+  const clearTimers = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (restartTimerRef.current) {
+      clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = null;
+    }
+  }, []);
 
   // ── Envía el buffer acumulado ──
   const flush = useCallback(() => {
@@ -123,7 +150,6 @@ export default function VoiceButton({
 
     if (!toSend || isNoise(toSend)) return;
 
-    // Dedup: descartar si es idéntico al último envío reciente
     const now = Date.now();
     if (
       lastSentTextRef.current.toLowerCase() === toSend.toLowerCase() &&
@@ -137,32 +163,43 @@ export default function VoiceButton({
     onResultRef.current(toSend);
   }, []);
 
-  // ── Crea y arranca una NUEVA instancia de SpeechRecognition ──
-  const start = useCallback(() => {
-    // Si ya hay una instancia activa, no crear otra
-    if (recognitionRef.current) return;
+  // ── Crea y arranca una NUEVA instancia ──
+  const createAndStart = useCallback(() => {
+    // Validaciones
+    if (!wantListeningRef.current) return;
     if (permissionDeniedRef.current) return;
 
-    const Ctor =
-      (window as unknown as Record<string, unknown>).SpeechRecognition ||
-      (window as unknown as Record<string, unknown>).webkitSpeechRecognition;
+    // Si hay instancia activa, matarla primero
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {
+        // Ignorar
+      }
+      recognitionRef.current = null;
+    }
 
+    const Ctor = getSpeechRecognitionCtor();
     if (!Ctor) {
       setSupported(false);
       return;
     }
 
-    // ── INSTANCIA NUEVA ──
-    const recognition = new (Ctor as SpeechRecognitionConstructor)();
+    // Nueva instancia con ID único
+    const myId = ++instanceIdRef.current;
+    const recognition = new Ctor();
     recognition.lang = 'es-CL';
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
     recognition.continuous = true;
 
-    // Track de índices para esta sesión
+    // Track de resultados finales procesados en ESTA sesión
     let processedFinalIndex = 0;
 
     recognition.onstart = () => {
+      // Verificar que soy la instancia actual
+      if (instanceIdRef.current !== myId) return;
+
       sessionBufferRef.current = '';
       processedFinalIndex = 0;
       setListening(true);
@@ -172,6 +209,8 @@ export default function VoiceButton({
     };
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
+      if (instanceIdRef.current !== myId) return;
+
       let newFinalText = '';
       let interim = '';
 
@@ -180,7 +219,6 @@ export default function VoiceButton({
         const transcript = result[0].transcript;
 
         if (result.isFinal) {
-          // Solo agregar si no lo hemos procesado antes
           if (i >= processedFinalIndex) {
             newFinalText += transcript + ' ';
             processedFinalIndex = i + 1;
@@ -190,7 +228,6 @@ export default function VoiceButton({
         }
       }
 
-      // Acumular nuevo texto final al buffer de sesión
       if (newFinalText) {
         sessionBufferRef.current += newFinalText;
         setAccumulatedText(sessionBufferRef.current.trim());
@@ -204,33 +241,40 @@ export default function VoiceButton({
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      if (instanceIdRef.current !== myId) return;
+
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         permissionDeniedRef.current = true;
         wantListeningRef.current = false;
         setPermissionDenied(true);
         setSupported(false);
       }
-      // Otros errores: onend se encarga
+      // Otros errores: onend maneja el reinicio
     };
 
     recognition.onend = () => {
-      // Esta instancia ya murió — NUNCA volver a usarla
-      recognitionRef.current = null;
+      // Esta instancia MURIÓ — nunca más usarla
+      if (recognitionRef.current === recognition) {
+        recognitionRef.current = null;
+      }
+
+      // Solo procesar si soy la instancia actual
+      if (instanceIdRef.current !== myId) return;
+
       setListening(false);
 
       if (wantListeningRef.current && !permissionDeniedRef.current) {
-        // Enviar lo pendiente antes de reiniciar
+        // Usuario quiere seguir escuchando
         flush();
-        // Crear NUEVA instancia después de un breve delay
-        setTimeout(() => {
-          if (wantListeningRef.current) startRef.current();
+        // Reiniciar con NUEVA instancia después de delay
+        restartTimerRef.current = setTimeout(() => {
+          if (wantListeningRef.current && !permissionDeniedRef.current) {
+            createAndStart();
+          }
         }, RESTART_DELAY_MS);
       } else {
-        // Usuario apagó manualmente — limpiar todo
-        if (silenceTimerRef.current) {
-          clearTimeout(silenceTimerRef.current);
-          silenceTimerRef.current = null;
-        }
+        // Usuario apagó — limpiar todo
+        clearTimers();
         sessionBufferRef.current = '';
         setInterimText('');
         setAccumulatedText('');
@@ -243,32 +287,26 @@ export default function VoiceButton({
     try {
       recognition.start();
     } catch {
-      // Chrome puede rechazar sin gesto de usuario
       recognitionRef.current = null;
+      setListening(false);
     }
-  }, [flush]);
-
-  // Mantener startRef actualizado (en effect, no durante render)
-  useEffect(() => { startRef.current = start; }, [start]);
+  }, [flush, clearTimers]);
 
   // ── Detener escucha ──
   const stop = useCallback(() => {
-    // Apagar intención ANTES de detener (evita que onend reinicie)
+    // Marcar intención ANTES de detener
     wantListeningRef.current = false;
-
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
+    clearTimers();
 
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
       } catch {
-        // Ignorar errores al detener
+        // Ignorar
       }
+      // NO limpiar recognitionRef aquí — onend lo hace
     }
-  }, []);
+  }, [clearTimers]);
 
   // ── Toggle del botón ──
   const toggleListening = useCallback(() => {
@@ -279,31 +317,37 @@ export default function VoiceButton({
       setPermissionDenied(false);
       setSupported(true);
       wantListeningRef.current = true;
-      start();
+      createAndStart();
     }
-  }, [start, stop]);
+  }, [createAndStart, stop]);
 
-  // ── Auto-start + cleanup ──
+  // ── Auto-start ──
   useEffect(() => {
-    let startTimer: ReturnType<typeof setTimeout> | null = null;
+    if (!autoStart) return;
 
-    if (autoStart) {
-      wantListeningRef.current = true;
-      startTimer = setTimeout(() => {
-        if (wantListeningRef.current) startRef.current();
-      }, 600);
+    const Ctor = getSpeechRecognitionCtor();
+    if (!Ctor) {
+      setSupported(false);
+      return;
     }
+
+    wantListeningRef.current = true;
+    const timer = setTimeout(() => {
+      if (wantListeningRef.current) {
+        createAndStart();
+      }
+    }, 600);
 
     return () => {
-      // Apagar intención ANTES de abortar
+      clearTimeout(timer);
+    };
+  }, [autoStart, createAndStart]);
+
+  // ── Cleanup al desmontar ──
+  useEffect(() => {
+    return () => {
       wantListeningRef.current = false;
-
-      if (startTimer) clearTimeout(startTimer);
-
-      if (silenceTimerRef.current) {
-        clearTimeout(silenceTimerRef.current);
-        silenceTimerRef.current = null;
-      }
+      clearTimers();
 
       if (recognitionRef.current) {
         try {
@@ -314,20 +358,18 @@ export default function VoiceButton({
         recognitionRef.current = null;
       }
     };
-  }, [autoStart]);
+  }, [clearTimers]);
 
   if (!supported) return null;
 
   return (
     <div className="flex items-center gap-2">
-      {/* Texto acumulado */}
       {accumulatedText && listening && (
         <span className="text-xs text-[var(--cyan)]/80 max-w-[250px] truncate">
           &ldquo;{accumulatedText}&rdquo;
           {!interimText && <span className="animate-pulse ml-0.5">|</span>}
         </span>
       )}
-      {/* Parciales en vivo */}
       {interimText && listening && !accumulatedText && (
         <span className="text-[10px] text-[var(--text-faint)] italic max-w-[180px] truncate">
           {interimText}
