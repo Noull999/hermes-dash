@@ -17,7 +17,7 @@ TIMEOUT = 300  # 5 minutes
 
 class ClaudeRequest(BaseModel):
     repo: str
-    model: str = "claude-sonnet-4-20250514"
+    model: str = "claude-sonnet-4-5"
     prompt: str
     mode: str = "chat"
     allow_edits: bool = False
