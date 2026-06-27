@@ -83,6 +83,8 @@ export default function VoiceButton({
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasSentRef = useRef(false); // si envió algo válido en este ciclo
+  const finalBufferRef = useRef(''); // acumula texto final hasta que haya silencio
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Resetear timer de inactividad ──
   const resetInactivity = useCallback(() => {
@@ -125,13 +127,13 @@ export default function VoiceButton({
     };
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let finalText = '';
       let interimAccum = '';
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          finalText += transcript;
+          // Acumular en buffer en vez de enviar inmediatamente
+          finalBufferRef.current += transcript;
         } else {
           interimAccum += transcript;
         }
@@ -140,22 +142,42 @@ export default function VoiceButton({
       // Feedback visual con los parciales
       setInterimText(interimAccum);
 
-      // Procesar resultado final
-      if (finalText.trim()) {
-        const trimmed = finalText.trim();
+      // Si hay texto final acumulado, reiniciar timer de silencio
+      if (finalBufferRef.current.trim()) {
+        const trimmed = finalBufferRef.current.trim();
         if (isNoise(trimmed)) {
-          setInterimText(''); // no mostrar ruido
+          finalBufferRef.current = '';
+          setInterimText('');
           return;
         }
 
-        // Debounce: no más de 1 envío cada 3s
-        const now = Date.now();
-        if (now - lastSendRef.current < DEBOUNCE_MS) return;
-        lastSendRef.current = now;
+        // Mostrar el acumulado como interim mientras espera
+        if (!interimAccum) {
+          setInterimText(trimmed + ' …');
+        }
 
-        hasSentRef.current = true;
-        onResult(trimmed);
-        setInterimText('');
+        // Resetear timer de silencio — solo envía si hay 1.5s sin nuevo texto final
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = setTimeout(() => {
+          const toSend = finalBufferRef.current.trim();
+          if (!toSend || isNoise(toSend)) {
+            finalBufferRef.current = '';
+            return;
+          }
+
+          // Debounce: no más de 1 envío cada 3s
+          const now = Date.now();
+          if (now - lastSendRef.current < DEBOUNCE_MS) {
+            finalBufferRef.current = ''; // descartar buffer, ya se envió algo hace poco
+            return;
+          }
+          lastSendRef.current = now;
+
+          hasSentRef.current = true;
+          onResult(toSend);
+          finalBufferRef.current = '';
+          setInterimText('');
+        }, 1500); // 1.5s de silencio → envía
       }
     };
 
@@ -167,6 +189,7 @@ export default function VoiceButton({
       listeningRef.current = false;
       setListening(false);
       setInterimText('');
+      finalBufferRef.current = '';
       onActiveChange?.(false);
     };
 
@@ -174,6 +197,7 @@ export default function VoiceButton({
       listeningRef.current = false;
       setListening(false);
       setInterimText('');
+      finalBufferRef.current = '';
 
       // Auto-start: reiniciar si aplica
       if (autoStart && !permissionDenied && !cooldown) {
@@ -196,6 +220,7 @@ export default function VoiceButton({
     return () => {
       if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
       if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       try {
         recognition.abort();
       } catch {
