@@ -140,7 +140,7 @@ export default function HomePage() {
           )}
           <VoiceButton
             onResult={handleVoiceResult}
-            autoStart={!hasMessages}
+            autoStart
             onActiveChange={setMicActive}
           />
         </div>

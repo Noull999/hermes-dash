@@ -87,6 +87,7 @@ export default function VoiceButton({
   const hasSentRef = useRef(false); // si envió algo válido en este ciclo
   const finalBufferRef = useRef(''); // acumula texto final hasta que haya silencio
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const userStoppedRef = useRef(false); // true si el usuario apagó manualmente el mic
 
   // ── Resetear timer de inactividad ──
   const resetInactivity = useCallback(() => {
@@ -205,8 +206,8 @@ export default function VoiceButton({
       setAccumulatedText('');
       finalBufferRef.current = '';
 
-      // Auto-start: reiniciar si aplica
-      if (autoStart && !permissionDenied && !cooldown) {
+      // Auto-start: reiniciar si aplica (solo si no lo apagó el usuario)
+      if (autoStart && !permissionDenied && !cooldown && !userStoppedRef.current) {
         setTimeout(() => {
           if (!listeningRef.current) {
             try {
@@ -255,8 +256,10 @@ export default function VoiceButton({
     if (!recognitionRef.current) return;
 
     if (listeningRef.current) {
+      userStoppedRef.current = true;
       recognitionRef.current.stop();
     } else {
+      userStoppedRef.current = false;
       setCooldown(false);
       if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
       try {
