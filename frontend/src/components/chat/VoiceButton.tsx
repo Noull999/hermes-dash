@@ -57,6 +57,7 @@ const MIN_LENGTH = 3;
 const DEBOUNCE_MS = 3000;       // max 1 envío cada 3s
 const INACTIVITY_TIMEOUT = 15000; // 15s sin voz válida → pausa
 const COOLDOWN_MS = 10000;       // pausa de 10s tras inactividad
+const SILENCE_MS = 2000;         // 2s de silencio antes de enviar
 
 function isNoise(text: string): boolean {
   const t = text.trim();
@@ -77,6 +78,7 @@ export default function VoiceButton({
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [cooldown, setCooldown] = useState(false);
   const [interimText, setInterimText] = useState('');
+  const [accumulatedText, setAccumulatedText] = useState('');
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const listeningRef = useRef(false);
   const lastSendRef = useRef(0);
@@ -142,21 +144,22 @@ export default function VoiceButton({
       // Feedback visual con los parciales
       setInterimText(interimAccum);
 
+      // Mostrar el acumulado de forma estable mientras espera
+      if (finalBufferRef.current.trim()) {
+        setAccumulatedText(finalBufferRef.current.trim());
+      }
+
       // Si hay texto final acumulado, reiniciar timer de silencio
       if (finalBufferRef.current.trim()) {
         const trimmed = finalBufferRef.current.trim();
         if (isNoise(trimmed)) {
           finalBufferRef.current = '';
           setInterimText('');
+          setAccumulatedText('');
           return;
         }
 
-        // Mostrar el acumulado como interim mientras espera
-        if (!interimAccum) {
-          setInterimText(trimmed + ' …');
-        }
-
-        // Resetear timer de silencio — solo envía si hay 1.5s sin nuevo texto final
+        // Resetear timer de silencio — solo envía si hay Ns sin nuevo texto final
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = setTimeout(() => {
           const toSend = finalBufferRef.current.trim();
@@ -177,7 +180,8 @@ export default function VoiceButton({
           onResult(toSend);
           finalBufferRef.current = '';
           setInterimText('');
-        }, 1500); // 1.5s de silencio → envía
+          setAccumulatedText('');
+        }, SILENCE_MS); // Ns de silencio → envía
       }
     };
 
@@ -189,6 +193,7 @@ export default function VoiceButton({
       listeningRef.current = false;
       setListening(false);
       setInterimText('');
+      setAccumulatedText('');
       finalBufferRef.current = '';
       onActiveChange?.(false);
     };
@@ -197,6 +202,7 @@ export default function VoiceButton({
       listeningRef.current = false;
       setListening(false);
       setInterimText('');
+      setAccumulatedText('');
       finalBufferRef.current = '';
 
       // Auto-start: reiniciar si aplica
@@ -265,9 +271,16 @@ export default function VoiceButton({
 
   return (
     <div className="flex items-center gap-2">
-      {/* Interim transcript flotante */}
-      {interimText && listening && (
-        <span className="text-[10px] text-[var(--cyan)]/60 italic max-w-[120px] truncate transition-opacity">
+      {/* Texto acumulado (lo capturado hasta ahora) */}
+      {accumulatedText && listening && (
+        <span className="text-xs text-[var(--cyan)]/80 max-w-[250px] truncate">
+          &ldquo;{accumulatedText}&rdquo;
+          {!interimText && <span className="animate-pulse ml-0.5">|</span>}
+        </span>
+      )}
+      {/* Parciales en vivo (solo si hay y no hay acumulado) */}
+      {interimText && listening && !accumulatedText && (
+        <span className="text-[10px] text-[var(--text-faint)] italic max-w-[180px] truncate">
           {interimText}
         </span>
       )}
