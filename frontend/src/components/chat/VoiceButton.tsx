@@ -51,8 +51,8 @@ interface VoiceButtonProps {
 const FILLER = /^(uh|ah|mm|hm|eh|ok|sí|si|no|a|e|o|u|)$/i;
 const MIN_LENGTH = 3;
 const SILENCE_MS = 2000;
-const DEDUP_WINDOW_MS = 10000;
-const RESTART_DELAY_MS = 350;
+const DEDUP_WINDOW_MS = 15000;
+const RESTART_DELAY_MS = 1500;
 
 function isNoise(text: string): boolean {
   const t = text.trim();
@@ -118,6 +118,9 @@ export default function VoiceButton({
   // Buffer de sesión
   const sessionBufferRef = useRef('');
 
+  // Flag para evitar doble flush (silence timer vs onend)
+  const flushedBySilenceRef = useRef(false);
+
   // Callbacks frescos
   const onResultRef = useRef(onResult);
   const onActiveChangeRef = useRef(onActiveChange);
@@ -137,10 +140,20 @@ export default function VoiceButton({
   }, []);
 
   // ── Envía el buffer acumulado ──
-  const flush = useCallback(() => {
+  const flush = useCallback((fromSilenceTimer = false) => {
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
+    }
+
+    // Si el silence timer ya hizo flush, onend no debe repetir
+    if (!fromSilenceTimer && flushedBySilenceRef.current) {
+      flushedBySilenceRef.current = false;
+      return;
+    }
+
+    if (fromSilenceTimer) {
+      flushedBySilenceRef.current = true;
     }
 
     const toSend = sessionBufferRef.current.trim();
@@ -151,11 +164,14 @@ export default function VoiceButton({
     if (!toSend || isNoise(toSend)) return;
 
     const now = Date.now();
-    if (
-      lastSentTextRef.current.toLowerCase() === toSend.toLowerCase() &&
-      now - lastSentTimeRef.current < DEDUP_WINDOW_MS
-    ) {
-      return;
+    const a = toSend.trim().toLowerCase();
+    const b = lastSentTextRef.current.trim().toLowerCase();
+
+    // Dedup inteligente: igualdad exacta O uno contiene al otro
+    if (now - lastSentTimeRef.current < DEDUP_WINDOW_MS) {
+      if (a === b || a.includes(b) || b.includes(a)) {
+        return;
+      }
     }
 
     lastSentTextRef.current = toSend;
@@ -202,6 +218,7 @@ export default function VoiceButton({
 
       sessionBufferRef.current = '';
       processedFinalIndex = 0;
+      flushedBySilenceRef.current = false;
       setListening(true);
       setInterimText('');
       setAccumulatedText('');
@@ -237,7 +254,7 @@ export default function VoiceButton({
 
       // Reiniciar timer de silencio
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = setTimeout(flush, SILENCE_MS);
+      silenceTimerRef.current = setTimeout(() => flush(true), SILENCE_MS);
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
@@ -265,7 +282,7 @@ export default function VoiceButton({
 
       if (wantListeningRef.current && !permissionDeniedRef.current) {
         // Usuario quiere seguir escuchando
-        flush();
+        flush(false);
         // Reiniciar con NUEVA instancia después de delay
         restartTimerRef.current = setTimeout(() => {
           if (wantListeningRef.current && !permissionDeniedRef.current) {
