@@ -203,6 +203,17 @@ export default function VoiceButton({
       listeningRef.current = false;
       setListening(false);
 
+      // Si hay texto pendiente en el buffer, enviarlo AHORA antes de que se pierda
+      const pendingText = finalBufferRef.current.trim();
+      if (pendingText && !isNoise(pendingText) && !userStoppedRef.current) {
+        const now = Date.now();
+        if (now - lastSendRef.current >= DEBOUNCE_MS) {
+          lastSendRef.current = now;
+          hasSentRef.current = true;
+          onResult(pendingText);
+        }
+      }
+
       // Solo limpiar el display si NO va a auto-reiniciarse
       const willRestart = autoStart && !permissionDenied && !cooldown && !userStoppedRef.current;
       if (!willRestart) {
