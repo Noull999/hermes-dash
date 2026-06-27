@@ -202,12 +202,17 @@ export default function VoiceButton({
     recognition.onend = () => {
       listeningRef.current = false;
       setListening(false);
-      setInterimText('');
-      setAccumulatedText('');
+
+      // Solo limpiar el display si NO va a auto-reiniciarse
+      const willRestart = autoStart && !permissionDenied && !cooldown && !userStoppedRef.current;
+      if (!willRestart) {
+        setInterimText('');
+        setAccumulatedText('');
+      }
       finalBufferRef.current = '';
 
       // Auto-start: reiniciar si aplica (solo si no lo apagó el usuario)
-      if (autoStart && !permissionDenied && !cooldown && !userStoppedRef.current) {
+      if (willRestart) {
         setTimeout(() => {
           if (!listeningRef.current) {
             try {

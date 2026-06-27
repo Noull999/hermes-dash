@@ -33,7 +33,6 @@ export default function InputBox() {
 
   return (
     <div className="flex items-end gap-2 p-3 bg-[var(--card)] border-t border-[rgba(255,255,255,0.06)]">
-      <VoiceButton onResult={handleVoiceResult} />
       <div className="flex-1 relative">
         <input
           ref={inputRef}
