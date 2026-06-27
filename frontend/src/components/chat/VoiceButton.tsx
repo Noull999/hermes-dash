@@ -55,10 +55,8 @@ interface VoiceButtonProps {
 const FILLER = /^(uh|ah|mm|hm|eh|ok|sí|si|no|a|e|o|u|)$/i;
 const MIN_LENGTH = 3;
 const DEBOUNCE_MS = 3000;       // max 1 envío cada 3s
-const INACTIVITY_TIMEOUT = 15000; // 15s sin voz válida → pausa
-const COOLDOWN_MS = 10000;       // pausa de 10s tras inactividad
 const SILENCE_MS = 2000;         // 2s de silencio antes de enviar
-const RESTART_BLOCK_MS = 7000;   // 7s sin auto-restart tras enviar (evita duplicados por ruido residual)
+const DEDUP_WINDOW_MS = 30000;   // ventana para dedup (30s)
 
 function isNoise(text: string): boolean {
   const t = text.trim();
@@ -69,6 +67,13 @@ function isNoise(text: string): boolean {
   return false;
 }
 
+/**
+ * VoiceButton con soporte de auto-start.
+ *
+ * REGLA DE ORO: NUNCA llamar .start() en la misma instancia de SpeechRecognition
+ * después de que haya disparado onend. Chrome corrompe el estado interno.
+ * Cada ciclo de escucha usa una instancia NUEVA (vía restartKey).
+ */
 export default function VoiceButton({
   onResult,
   autoStart = false,
@@ -80,34 +85,24 @@ export default function VoiceButton({
   const [cooldown, setCooldown] = useState(false);
   const [interimText, setInterimText] = useState('');
   const [accumulatedText, setAccumulatedText] = useState('');
+  const [restartKey, setRestartKey] = useState(0); // cada cambio → nueva instancia
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const listeningRef = useRef(false);
   const lastSendRef = useRef(0);
-  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasSentRef = useRef(false); // si envió algo válido en este ciclo
   const finalBufferRef = useRef(''); // acumula texto final hasta que haya silencio
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userStoppedRef = useRef(false); // true si el usuario apagó manualmente el mic
-  const restartBlockedUntilRef = useRef(0); // timestamp hasta el que se bloquea auto-restart
   const lastSentTextRef = useRef(''); // último texto enviado (para dedup)
   const lastSentTimeRef = useRef(0); // cuándo se envió lastSentText
 
-  // ── Resetear timer de inactividad ──
-  const resetInactivity = useCallback(() => {
-    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-    inactivityTimerRef.current = setTimeout(() => {
-      // 15s sin enviar nada válido → pausar auto-start
-      if (autoStart && !hasSentRef.current) {
-        setCooldown(true);
-        cooldownTimerRef.current = setTimeout(() => {
-          setCooldown(false);
-        }, COOLDOWN_MS);
-      }
-    }, INACTIVITY_TIMEOUT);
-  }, [autoStart]);
+  // ── Programa un reinicio con instancia nueva ──
+  const scheduleRestart = useCallback((delayMs = 400) => {
+    setTimeout(() => setRestartKey(k => k + 1), delayMs);
+  }, []);
 
-  // ── Inicializar SpeechRecognition ──
+  // ── Crear instancia NUEVA de SpeechRecognition ──
+  //    Se ejecuta al montar y cada vez que restartKey cambia.
   useEffect(() => {
     const SpeechRecognitionCtor =
       (window as unknown as Record<string, unknown>).SpeechRecognition ||
@@ -124,13 +119,14 @@ export default function VoiceButton({
     recognition.maxAlternatives = 1;
     recognition.continuous = true;         // no se corta en pausas
 
+    // ── Handlers (cierran sobre refs para evitar re-crear el effect) ──
     recognition.onstart = () => {
       listeningRef.current = true;
       setListening(true);
       setInterimText('');
+      setAccumulatedText('');
       hasSentRef.current = false;
       onActiveChange?.(true);
-      resetInactivity();
     };
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -139,22 +135,20 @@ export default function VoiceButton({
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          // Acumular en buffer en vez de enviar inmediatamente
+          // Acumular en buffer
           finalBufferRef.current += transcript;
         } else {
           interimAccum += transcript;
         }
       }
 
-      // Feedback visual con los parciales
       setInterimText(interimAccum);
 
-      // Mostrar el acumulado de forma estable mientras espera
       if (finalBufferRef.current.trim()) {
         setAccumulatedText(finalBufferRef.current.trim());
       }
 
-      // Si hay texto final acumulado, reiniciar timer de silencio
+      // ── Procesar buffer si hay contenido ──
       if (finalBufferRef.current.trim()) {
         const trimmed = finalBufferRef.current.trim();
         if (isNoise(trimmed)) {
@@ -164,27 +158,18 @@ export default function VoiceButton({
           return;
         }
 
-        // DEDUP: si el texto es idéntico al último enviado, descartar
-        // Chrome a veces reenvía el mismo resultado al reiniciar el reconocimiento
+        // DEDUP: si es igual/parecido al último envío, descartar
         const lastText = lastSentTextRef.current.toLowerCase();
         const currentText = trimmed.toLowerCase();
-        if (lastText && (currentText === lastText || lastText.includes(currentText) || currentText.includes(lastText))
-            && Date.now() - lastSentTimeRef.current < 30000) {
+        if (lastText && Date.now() - lastSentTimeRef.current < DEDUP_WINDOW_MS
+            && (currentText === lastText || lastText.includes(currentText) || currentText.includes(lastText))) {
           finalBufferRef.current = '';
           setInterimText('');
           setAccumulatedText('');
           return;
         }
 
-        // Si estamos en período de bloqueo post-envío, descartar (ruido residual)
-        if (Date.now() < restartBlockedUntilRef.current) {
-          finalBufferRef.current = '';
-          setInterimText('');
-          setAccumulatedText('');
-          return;
-        }
-
-        // Resetear timer de silencio — solo envía si hay Ns sin nuevo texto final
+        // Resetear timer de silencio
         if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = setTimeout(() => {
           const toSend = finalBufferRef.current.trim();
@@ -193,22 +178,21 @@ export default function VoiceButton({
             return;
           }
 
-          // Debounce: no más de 1 envío cada 3s
           const now = Date.now();
           if (now - lastSendRef.current < DEBOUNCE_MS) {
-            finalBufferRef.current = ''; // descartar buffer, ya se envió algo hace poco
+            finalBufferRef.current = '';
             return;
           }
           lastSendRef.current = now;
-
           hasSentRef.current = true;
+
           onResult(toSend);
           lastSentTextRef.current = toSend;
-          lastSentTimeRef.current = Date.now();
+          lastSentTimeRef.current = now;
           finalBufferRef.current = '';
           setInterimText('');
           setAccumulatedText('');
-        }, SILENCE_MS); // Ns de silencio → envía
+        }, SILENCE_MS);
       }
     };
 
@@ -229,7 +213,7 @@ export default function VoiceButton({
       listeningRef.current = false;
       setListening(false);
 
-      // Si hay texto pendiente en el buffer, enviarlo AHORA antes de que se pierda
+      // Enviar texto pendiente antes de que se pierda
       const pendingText = finalBufferRef.current.trim();
       const didSend = pendingText && !isNoise(pendingText) && !userStoppedRef.current;
       if (didSend) {
@@ -240,31 +224,16 @@ export default function VoiceButton({
           onResult(pendingText);
           lastSentTextRef.current = pendingText;
           lastSentTimeRef.current = now;
-          // Bloquear auto-restart para evitar que el nuevo ciclo capture ruido residual
-          restartBlockedUntilRef.current = now + RESTART_BLOCK_MS;
         }
       }
 
-      // Solo limpiar el display si NO va a auto-reiniciarse
-      const willRestart = autoStart && !permissionDenied && !cooldown && !userStoppedRef.current
-        && Date.now() >= restartBlockedUntilRef.current;
-      if (!willRestart) {
-        setInterimText('');
-        setAccumulatedText('');
-      }
+      setInterimText('');
+      setAccumulatedText('');
       finalBufferRef.current = '';
 
-      // Auto-start: reiniciar si aplica (solo si no lo apagó el usuario y no acabamos de enviar)
-      if (willRestart) {
-        setTimeout(() => {
-          if (!listeningRef.current) {
-            try {
-              recognition.start();
-            } catch {
-              // browser rechazó
-            }
-          }
-        }, 400);
+      // Auto-restart si aplica (SOLO si no lo apagó el usuario)
+      if (autoStart && !permissionDenied && !cooldown && !userStoppedRef.current) {
+        scheduleRestart(400);
       } else {
         onActiveChange?.(false);
       }
@@ -272,65 +241,62 @@ export default function VoiceButton({
 
     recognitionRef.current = recognition;
 
+    // ── Iniciar escucha si aplica ──
+    const shouldStart = autoStart && !cooldown && !permissionDenied;
+    if (shouldStart) {
+      // Necesita user gesture en Chrome, así que intentamos con un pequeño delay
+      setTimeout(() => {
+        try {
+          recognition.start();
+        } catch {
+          // browser rechazó (falta user gesture)
+        }
+      }, 600);
+    }
+
+    // ── Cleanup: destruir esta instancia ──
     return () => {
-      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       try {
         recognition.abort();
       } catch {
         // ignore
       }
-      recognitionRef.current = null;
+      if (recognitionRef.current === recognition) {
+        recognitionRef.current = null;
+      }
     };
-  }, [onResult, autoStart, onActiveChange, permissionDenied, cooldown, resetInactivity]);
-
-  // ── Auto-start (se re-evalúa al salir de cooldown) ──
-  useEffect(() => {
-    if (autoStart && recognitionRef.current && !listeningRef.current && !cooldown && !permissionDenied
-        && Date.now() >= restartBlockedUntilRef.current) {
-      const delay = setTimeout(() => {
-        try {
-          recognitionRef.current?.start();
-        } catch {
-          // puede fallar si falta user gesture
-        }
-      }, 800);
-      return () => clearTimeout(delay);
-    }
-  }, [autoStart, cooldown, permissionDenied]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onResult, autoStart, onActiveChange, permissionDenied, cooldown, restartKey]);
 
   // ── Toggle manual ──
   const toggleListening = useCallback(() => {
-    if (!recognitionRef.current) return;
-
     if (listeningRef.current) {
+      // Apagar: detener la instancia actual
       userStoppedRef.current = true;
-      recognitionRef.current.stop();
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch {}
+      }
     } else {
+      // Encender: crear instancia NUEVA (nunca reusar la misma)
       userStoppedRef.current = false;
       setCooldown(false);
-      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
-      try {
-        recognitionRef.current.start();
-      } catch {
-        // ya corriendo o permisos denegados
-      }
+      scheduleRestart(0); // restartKey++ → effect crea nueva instancia
     }
-  }, []);
+  }, [scheduleRestart]);
 
   if (!supported) return null;
 
   return (
     <div className="flex items-center gap-2">
-      {/* Texto acumulado (lo capturado hasta ahora) */}
+      {/* Texto acumulado */}
       {accumulatedText && listening && (
         <span className="text-xs text-[var(--cyan)]/80 max-w-[250px] truncate">
           &ldquo;{accumulatedText}&rdquo;
           {!interimText && <span className="animate-pulse ml-0.5">|</span>}
         </span>
       )}
-      {/* Parciales en vivo (solo si hay y no hay acumulado) */}
+      {/* Parciales en vivo */}
       {interimText && listening && !accumulatedText && (
         <span className="text-[10px] text-[var(--text-faint)] italic max-w-[180px] truncate">
           {interimText}
