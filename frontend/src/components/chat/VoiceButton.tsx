@@ -90,6 +90,8 @@ export default function VoiceButton({
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userStoppedRef = useRef(false); // true si el usuario apagó manualmente el mic
   const restartBlockedUntilRef = useRef(0); // timestamp hasta el que se bloquea auto-restart
+  const lastSentTextRef = useRef(''); // último texto enviado (para dedup)
+  const lastSentTimeRef = useRef(0); // cuándo se envió lastSentText
 
   // ── Resetear timer de inactividad ──
   const resetInactivity = useCallback(() => {
@@ -162,6 +164,18 @@ export default function VoiceButton({
           return;
         }
 
+        // DEDUP: si el texto es idéntico al último enviado, descartar
+        // Chrome a veces reenvía el mismo resultado al reiniciar el reconocimiento
+        const lastText = lastSentTextRef.current.toLowerCase();
+        const currentText = trimmed.toLowerCase();
+        if (lastText && (currentText === lastText || lastText.includes(currentText) || currentText.includes(lastText))
+            && Date.now() - lastSentTimeRef.current < 30000) {
+          finalBufferRef.current = '';
+          setInterimText('');
+          setAccumulatedText('');
+          return;
+        }
+
         // Si estamos en período de bloqueo post-envío, descartar (ruido residual)
         if (Date.now() < restartBlockedUntilRef.current) {
           finalBufferRef.current = '';
@@ -189,6 +203,8 @@ export default function VoiceButton({
 
           hasSentRef.current = true;
           onResult(toSend);
+          lastSentTextRef.current = toSend;
+          lastSentTimeRef.current = Date.now();
           finalBufferRef.current = '';
           setInterimText('');
           setAccumulatedText('');
@@ -222,6 +238,8 @@ export default function VoiceButton({
           lastSendRef.current = now;
           hasSentRef.current = true;
           onResult(pendingText);
+          lastSentTextRef.current = pendingText;
+          lastSentTimeRef.current = now;
           // Bloquear auto-restart para evitar que el nuevo ciclo capture ruido residual
           restartBlockedUntilRef.current = now + RESTART_BLOCK_MS;
         }
