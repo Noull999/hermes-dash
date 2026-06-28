@@ -2,7 +2,7 @@
 
 import json
 import os
-import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -103,7 +103,7 @@ async def subscribe(sub: Subscription):
         return {"status": "already_subscribed"}
 
     entry = sub.model_dump()
-    entry["created"] = datetime.datetime.utcnow().isoformat()
+    entry["created"] = datetime.now(timezone.utc).isoformat()
     subs.append(entry)
     _save_subs(subs)
     return {"status": "subscribed", "total": len(subs)}

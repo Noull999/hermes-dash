@@ -167,11 +167,9 @@ export default function VoiceButton({
     const a = toSend.trim().toLowerCase();
     const b = lastSentTextRef.current.trim().toLowerCase();
 
-    // Dedup inteligente: igualdad exacta O uno contiene al otro
-    if (now - lastSentTimeRef.current < DEDUP_WINDOW_MS) {
-      if (a === b || a.includes(b) || b.includes(a)) {
-        return;
-      }
+    // Dedup: solo igualdad exacta (no substring, pierde input válido)
+    if (now - lastSentTimeRef.current < DEDUP_WINDOW_MS && a === b) {
+      return;
     }
 
     lastSentTextRef.current = toSend;
@@ -290,7 +288,19 @@ export default function VoiceButton({
           }
         }, RESTART_DELAY_MS);
       } else {
-        // Usuario apagó — limpiar todo
+        // Usuario apagó — enviar texto acumulado antes de limpiar
+        const finalText = sessionBufferRef.current.trim();
+        if (finalText && !isNoise(finalText)) {
+          const now = Date.now();
+          const a = finalText.toLowerCase();
+          const b = lastSentTextRef.current.trim().toLowerCase();
+          const isDup = now - lastSentTimeRef.current < DEDUP_WINDOW_MS && a === b;
+          if (!isDup) {
+            lastSentTextRef.current = finalText;
+            lastSentTimeRef.current = now;
+            onResultRef.current(finalText);
+          }
+        }
         clearTimers();
         sessionBufferRef.current = '';
         setInterimText('');
@@ -381,15 +391,16 @@ export default function VoiceButton({
 
   return (
     <div className="flex items-center gap-2">
-      {accumulatedText && listening && (
+      {(accumulatedText || interimText) && listening && (
         <span className="text-xs text-[var(--cyan)]/80 max-w-[250px] truncate">
-          &ldquo;{accumulatedText}&rdquo;
+          {accumulatedText && <>&ldquo;{accumulatedText}</>}
+          {interimText && (
+            <span className="text-[var(--text-faint)] italic">
+              {accumulatedText ? ' ' : ''}{interimText}
+            </span>
+          )}
+          {accumulatedText && <>&rdquo;</>}
           {!interimText && <span className="animate-pulse ml-0.5">|</span>}
-        </span>
-      )}
-      {interimText && listening && !accumulatedText && (
-        <span className="text-[10px] text-[var(--text-faint)] italic max-w-[180px] truncate">
-          {interimText}
         </span>
       )}
 

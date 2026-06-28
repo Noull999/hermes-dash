@@ -40,9 +40,14 @@ export default function TokenCard() {
   if (!tokens?.session) return null;
 
   const s = tokens.session;
-  const totalBar = s.new_total_tokens + s.cached_tokens;
-  const newPct = totalBar > 0 ? (s.new_total_tokens / totalBar) * 100 : 0;
-  const usedPct = s.limit > 0 ? Math.min((s.new_total_tokens / s.limit) * 100, 100) : 0;
+  const newTotalTokens = s.new_total_tokens ?? 0;
+  const cachedTokens = s.cached_tokens ?? 0;
+  const grossTotalTokens = s.gross_total_tokens ?? 0;
+  const limit = s.limit ?? 0;
+  const remainingHours = s.remaining_hours ?? 0;
+
+  const totalBar = newTotalTokens + cachedTokens;
+  const usedPct = limit > 0 ? Math.min((newTotalTokens / limit) * 100, 100) : 0;
   const categories = tokens.categories || {};
   const catNames = Object.keys(categories).sort(
     (a, b) => (categories[b].new_tokens || 0) - (categories[a].new_tokens || 0)
@@ -75,16 +80,16 @@ export default function TokenCard() {
         </span>
       </div>
       <div className="flex justify-between mb-3 hud-label text-[8px]">
-        <span>SESIÓN 5H · {s.new_total_tokens.toLocaleString()} / {s.limit.toLocaleString()}</span>
-        <span>~{s.remaining_hours}H</span>
+        <span>SESIÓN 5H · {newTotalTokens.toLocaleString()} / {limit.toLocaleString()}</span>
+        <span>~{remainingHours}H</span>
       </div>
 
       {/* stats */}
       <div className="grid grid-cols-3 gap-2 mb-3">
         {[
-          { Icon: TrendingUp, label: 'NUEVOS', value: s.new_total_tokens, glow: true },
-          { Icon: Layers, label: 'CACHÉ', value: s.cached_tokens, glow: false },
-          { Icon: Coins, label: 'BRUTO', value: s.gross_total_tokens, glow: false },
+          { Icon: TrendingUp, label: 'NUEVOS', value: newTotalTokens, glow: true },
+          { Icon: Layers, label: 'CACHÉ', value: cachedTokens, glow: false },
+          { Icon: Coins, label: 'BRUTO', value: grossTotalTokens, glow: false },
         ].map(({ Icon, label, value, glow }) => (
           <div key={label} className="border border-[var(--hairline)] px-2 py-2 bg-[rgba(79,227,255,0.02)]">
             <div className="flex items-center gap-1 mb-1">

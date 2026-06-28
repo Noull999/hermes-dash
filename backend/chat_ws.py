@@ -379,11 +379,13 @@ async def chat_websocket(ws: WebSocket, session_id: str = Query("")):
     await ws.accept()
 
     # ── Session resolution ──────────────────────────────────────────
+    created_new_session = False
     if not session_id:
         # Create a new session
         import uuid
         now = datetime.now(timezone.utc).isoformat()
         session_id = str(uuid.uuid4())
+        created_new_session = True
         db = _get_db()
         try:
             db.execute(
@@ -422,6 +424,14 @@ async def chat_websocket(ws: WebSocket, session_id: str = Query("")):
     # Replace the old in-memory history with persisted data
     async with _history_lock:
         _histories[session_id] = initial_history
+
+    # Notify client of the session_id (especially important for new sessions)
+    if created_new_session:
+        await ws.send_json({
+            "type": "session_created",
+            "session_id": session_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
 
     hb_task: asyncio.Task | None = None
 
@@ -579,6 +589,9 @@ async def chat_websocket(ws: WebSocket, session_id: str = Query("")):
                         "content": result_msg,
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                     })
+                    # Persist to DB and history
+                    append_message(session_id, "user", content)
+                    append_message(session_id, "assistant", result_msg)
                     async with _history_lock:
                         _histories.setdefault(session_id, []).append(
                             {"role": "user", "content": content}
@@ -609,7 +622,9 @@ async def chat_websocket(ws: WebSocket, session_id: str = Query("")):
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                     })
 
-                    # Guardar en historial
+                    # Persist to DB and history
+                    append_message(session_id, "user", content)
+                    append_message(session_id, "assistant", result_msg)
                     async with _history_lock:
                         _histories.setdefault(session_id, []).append(
                             {"role": "user", "content": content}

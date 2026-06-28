@@ -12,7 +12,7 @@ from auth import verify_token
 router = APIRouter(tags=["claude"])
 
 REPO_BASE = Path("/root")
-TIMEOUT = 300  # 5 minutes
+TIMEOUT = 600  # 10 minutes
 
 
 class ClaudeRequest(BaseModel):
@@ -97,7 +97,16 @@ def run_claude(req: ClaudeRequest, _token: str = Depends(verify_token)):
             "error": stderr or f"Exit code {result.returncode}",
         }
 
-    # If successful, commit and push
+    # Only commit+push if allow_edits or code mode (when changes are expected)
+    if not (req.allow_edits or req.mode == "code"):
+        return {
+            "success": True,
+            "response": stdout,
+            "commit": None,
+            "error": None,
+        }
+
+    # If successful and edits allowed, commit and push
     commit_hash = None
     try:
         # git add all

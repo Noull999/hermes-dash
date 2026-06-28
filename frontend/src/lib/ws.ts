@@ -84,6 +84,15 @@ class WebSocketClient {
             message: 'Gateway: ' + (data.content || 'error desconocido'),
           });
         }
+        // Handle session_created to sync local storage
+        if (data.type === 'session_created' && data.session_id) {
+          localStorage.setItem(SESSION_KEY, data.session_id);
+          useLogStore.getState().addLog({
+            level: 'info', source: 'ws',
+            message: 'Nueva sesión creada',
+            details: data.session_id.slice(0, 8),
+          });
+        }
         this.messageHandlers.forEach((h) => h(data));
       } catch {
         this.messageHandlers.forEach((h) => h({ type: 'raw', content: event.data }));

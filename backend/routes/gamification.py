@@ -51,7 +51,10 @@ def _calc_level(xp: int) -> int:
 
 
 def _check_achievements(p: dict) -> list:
+    from datetime import datetime
+    now = datetime.now()
     today = date.today().isoformat()
+    is_night = now.hour >= 0 and now.hour < 5
     newly_unlocked = []
     unlocked = set(p.get("unlocked", []))
 
@@ -82,6 +85,8 @@ def _check_achievements(p: dict) -> list:
         elif aid == "emails_read" and p.get("emails_read", 0) >= 50:
             unlocked_now = True
         elif aid == "calendar_watcher" and p.get("calendar_views", 0) >= 20:
+            unlocked_now = True
+        elif aid == "night_owl" and is_night:
             unlocked_now = True
         elif aid == "level_5" and p.get("level", 1) >= 5:
             unlocked_now = True
@@ -125,11 +130,11 @@ async def track_action(payload: dict):  # Accept JSON body {"action": "...", "va
     action = payload.get("action", "")
     value = payload.get("value", 1)
     p = _load_progress()
-    today = date.today().isoformat()
+    today_str = date.today().isoformat()
 
     # Track login
-    if today not in p.get("login_dates", []):
-        p.setdefault("login_dates", []).append(today)
+    if today_str not in p.get("login_dates", []):
+        p.setdefault("login_dates", []).append(today_str)
         p["xp"] = p.get("xp", 0) + 10
 
     # Action-based XP
@@ -137,6 +142,7 @@ async def track_action(payload: dict):  # Accept JSON body {"action": "...", "va
         "chat": 5, "repo_run": 25, "reminder": 15,
         "note": 10, "email_read": 2, "calendar_view": 3,
     }
+    gain = 0
     if action in xp_map:
         gain = xp_map[action] * value
         p["xp"] = p.get("xp", 0) + gain

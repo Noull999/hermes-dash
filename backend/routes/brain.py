@@ -116,20 +116,20 @@ def create_brain(req: BrainCreateRequest, _token: str = Depends(verify_token)):
 
 
 @router.delete("/api/brain")
-def delete_brain(req: BrainDeleteRequest, _token: str = Depends(verify_token)):
-    """Delete a note by filename stem."""
+def delete_brain(id: str, _token: str = Depends(verify_token)):
+    """Delete a note by filename stem (passed as query param)."""
     _ensure_brain_dir()
 
-    filepath = BRAIN_DIR / f"{req.id}.md"
+    filepath = BRAIN_DIR / f"{id}.md"
     if not filepath.exists():
         # Try with type prefixes
         for prefix in ["", "link_", "snippet_"]:
-            candidate = BRAIN_DIR / f"{prefix}{req.id}.md"
+            candidate = BRAIN_DIR / f"{prefix}{id}.md"
             if candidate.exists():
                 filepath = candidate
                 break
         else:
-            raise HTTPException(status_code=404, detail=f"Note '{req.id}' not found")
+            raise HTTPException(status_code=404, detail=f"Note '{id}' not found")
 
     try:
         filepath.unlink()

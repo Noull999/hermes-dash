@@ -83,7 +83,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     // Acumulador de chunks streaming
     let streamingBuffer = '';
-    let lastMessageId: string | null = null;
 
     set({ connectionStatus: 'connecting' });
 
@@ -107,7 +106,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
           addMessage({ role: 'assistant', content });
         }
         streamingBuffer = '';
-        lastMessageId = null;
       } else if (msg.type === 'response' || msg.type === 'message') {
         setTyping(false);
         useHermesStore.getState().setOrbState('success', 'Respuesta completa');

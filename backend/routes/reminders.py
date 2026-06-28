@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -48,7 +48,7 @@ def list_reminders(_token: str = Depends(verify_token)):
     """List all reminders."""
     reminders = _load_reminders()
     # Enrich with status
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     for r in reminders:
         if "completed" not in r:
             r["completed"] = False
@@ -74,7 +74,7 @@ def create_reminder(req: ReminderCreateRequest, _token: str = Depends(verify_tok
         "datetime": req.datetime,
         "project": req.project or "general",
         "completed": False,
-        "created": datetime.utcnow().isoformat(),
+        "created": datetime.now(timezone.utc).isoformat(),
     }
 
     reminders.append(reminder)
@@ -84,17 +84,16 @@ def create_reminder(req: ReminderCreateRequest, _token: str = Depends(verify_tok
 
 
 @router.delete("/api/reminders")
-def delete_reminder(req: ReminderDeleteRequest, _token: str = Depends(verify_token)):
-    """Delete a reminder by id."""
+def delete_reminder(id: str, _token: str = Depends(verify_token)):
+    """Delete a reminder by id (passed as query param)."""
     reminders = _load_reminders()
 
     # Try string or int id
-    raw_id = req.id
-    if isinstance(raw_id, str):
-        try:
-            raw_id = int(raw_id)
-        except ValueError:
-            pass
+    raw_id: str | int = id
+    try:
+        raw_id = int(id)
+    except ValueError:
+        pass
 
     found = None
     for i, r in enumerate(reminders):
@@ -103,7 +102,7 @@ def delete_reminder(req: ReminderDeleteRequest, _token: str = Depends(verify_tok
             break
 
     if found is None:
-        raise HTTPException(status_code=404, detail=f"Reminder with id '{req.id}' not found")
+        raise HTTPException(status_code=404, detail=f"Reminder with id '{id}' not found")
 
     deleted = reminders.pop(found)
     _save_reminders(reminders)

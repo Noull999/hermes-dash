@@ -14,6 +14,18 @@ GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 GITHUB_USER = "Noull999"
 REPO_BASE = "/root"
 
+import re
+SAFE_REPO_NAME = re.compile(r'^[a-zA-Z0-9_\-\.]+$')
+
+
+def _validate_repo_name(name: str) -> bool:
+    """Validate repo name to prevent path traversal."""
+    if not name or not SAFE_REPO_NAME.match(name):
+        return False
+    if name in ('.', '..') or name.startswith('.'):
+        return False
+    return True
+
 
 def _run_git(cmd: list[str], cwd: str) -> str:
     try:
@@ -192,6 +204,8 @@ async def clone_repo(request: Request, _token: str = Depends(verify_token)):
     repo_url = body.get("url", "")
     if not repo_name or not repo_url:
         raise HTTPException(status_code=400, detail="repo name and url required")
+    if not _validate_repo_name(repo_name):
+        raise HTTPException(status_code=400, detail="Invalid repo name")
 
     target = os.path.join(REPO_BASE, repo_name)
     if os.path.isdir(target):
@@ -219,6 +233,8 @@ async def pull_repo(request: Request, _token: str = Depends(verify_token)):
     repo_name = body.get("repo", "")
     if not repo_name:
         raise HTTPException(status_code=400, detail="repo name required")
+    if not _validate_repo_name(repo_name):
+        raise HTTPException(status_code=400, detail="Invalid repo name")
 
     repo_dir = os.path.join(REPO_BASE, repo_name)
     if not os.path.isdir(repo_dir) or not os.path.isdir(os.path.join(repo_dir, ".git")):
@@ -253,6 +269,8 @@ async def commit_repo(request: Request, _token: str = Depends(verify_token)):
     message = body.get("message", "").strip()
     if not repo_name:
         raise HTTPException(status_code=400, detail="repo name required")
+    if not _validate_repo_name(repo_name):
+        raise HTTPException(status_code=400, detail="Invalid repo name")
     if not message:
         raise HTTPException(status_code=400, detail="commit message required")
 
