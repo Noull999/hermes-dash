@@ -85,41 +85,41 @@ def _get_local_status(repo_dir: str, branch: str) -> dict:
     if not local_full:
         return result
 
-    # Get owner/name from remote
-    remote = _run_git(["git", "remote", "get-url", "origin"], repo_dir)
-    if not remote or "github.com" not in remote:
-        return result
-
-    remote = remote.strip()
-    parts = remote.replace("git@github.com:", "").replace("https://github.com/", "").replace(".git", "").split("/")
-    if len(parts) < 2:
-        return result
-    owner, repo_name = parts[0], parts[1]
-
+    # Fetch from origin (timeout 10s)
     try:
-        headers = _github_headers()
-        # Compare local commit vs remote default branch
-        compare_url = f"https://api.github.com/repos/{owner}/{repo_name}/compare/{local_full}...{branch}"
-        comp = httpx.get(compare_url, headers=headers, timeout=10)
-        if comp.is_error:
-            return result
-
-        comp_data = comp.json()
-        behind = comp_data.get("behind_by", 0)
-        ahead = comp_data.get("ahead_by", 0)
-
-        if behind > 0 and ahead > 0:
-            status = "diverged"
-        elif behind > 0:
-            status = "behind"
-        elif ahead > 0:
-            status = "ahead"
-        else:
-            status = "synced"
-
-        result.update({"status": status, "behind": behind, "ahead": ahead})
+        subprocess.run(
+            ["git", "fetch", "origin", branch, "--quiet"],
+            cwd=repo_dir, capture_output=True, text=True, timeout=10
+        )
     except Exception:
         pass
+
+    # Check if origin/branch exists locally
+    remote_ref = f"origin/{branch}"
+    check_remote = _run_git(["git", "rev-parse", "--verify", remote_ref], repo_dir)
+
+    if check_remote:
+        # Remote branch exists, use rev-list to count ahead/behind
+        ahead_str = _run_git(["git", "rev-list", "--count", f"{remote_ref}..HEAD"], repo_dir)
+        behind_str = _run_git(["git", "rev-list", "--count", f"HEAD..{remote_ref}"], repo_dir)
+        ahead = int(ahead_str) if ahead_str.isdigit() else 0
+        behind = int(behind_str) if behind_str.isdigit() else 0
+    else:
+        # Remote branch doesn't exist (never pushed), count all commits not on any remote
+        ahead_str = _run_git(["git", "rev-list", "--count", "HEAD", "--not", "--remotes"], repo_dir)
+        ahead = int(ahead_str) if ahead_str.isdigit() else 0
+        behind = 0
+
+    if behind > 0 and ahead > 0:
+        status = "diverged"
+    elif behind > 0:
+        status = "behind"
+    elif ahead > 0:
+        status = "ahead"
+    else:
+        status = "synced"
+
+    result.update({"status": status, "behind": behind, "ahead": ahead})
 
     return result
 
