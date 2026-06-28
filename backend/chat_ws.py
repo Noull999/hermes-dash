@@ -333,41 +333,42 @@ async def _add_to_history(session_id: str, msg: dict) -> None:
 
 # ── Filtro de thinking para deepseek ────────────────────────────────
 def _strip_thinking(text: str) -> str:
-    """Elimina el proceso de razonamiento de deepseek-v4-flash."""
-    if not text or len(text) < 80:
+    """Elimina solo reasoning interno del modelo, sin tocar la respuesta real.
+
+    deepseek-v4-flash devuelve reasoning_content en campo separado,
+    pero a veces deja residuos al inicio del content. Esta funcion
+    solo elimina bloques extensos de auto-dialogo al PRINCIPIO del texto.
+    """
+    if not text or len(text) < 120:
         return text
 
-    # Buscar el ultimo saludo/pregunta en espanol
-    greeting = re.compile(
-        r"(¡?[Hh]ola|¿Qué tal|¿Cómo|"
-        r"¡?[Bb]uenos días|¡?[Bb]uenas|"
-        r"Hey|Qué hay|¿En qué|Dime|Cuéntame|"
-        r"Bueno|Mira|Oye|Oiga)"
-    )
-    matches = list(greeting.finditer(text))
-    if matches:
-        last = matches[-1]
-        start = last.start()
-        after = text[start:].strip()
-        if len(after) > 3:
-            return after
+    lines = text.replace("\r", "").split("\n")
 
-    thinking_phrases = [
-        "el usuario", "debo", "necesito", "la instruccion",
-        "i think", "i should", "i need", "just thinking",
-        "let me", "the user", "the person", "asimismo",
-        "asi que", "por ejemplo", "vamos:", "quizas",
-        "output debe ser", "i'll answer",
+    # Buscar la primera linea que sea claramente parte de la respuesta real
+    strong_markers = [
+        "i think", "i should", "i need", "let me",
+        "the user", "just thinking", "i'll answer",
+        "output debe ser", "debo responder",
+        "el usuario pregunt", "la instruccion",
+        "el asistente debe", "as an ai",
     ]
-    lines = [l.strip() for l in text.replace("\r", "").split("\n") if l.strip()]
-    for i in range(len(lines) - 1, -1, -1):
-        line = lines[i]
-        if not line:
+    first_real = None
+    for i, line in enumerate(lines):
+        s = line.strip()
+        if not s:
             continue
-        line_lower = line.lower()
-        is_thinking = any(p in line_lower for p in thinking_phrases)
-        if not is_thinking and len(line) > 3:
-            return "\n".join(lines[i:])
+        lower = s.lower()
+        is_thinking = any(m in lower for m in strong_markers)
+        if not is_thinking and len(s) > 15:
+            first_real = i
+            break
+
+    if first_real and first_real > 0:
+        reasoning_len = sum(len(lines[j]) for j in range(first_real))
+        total_len = len(text)
+        # Solo cortar si el reasoning es mas del 30% del texto total
+        if reasoning_len / total_len > 0.3:
+            return "\n".join(lines[first_real:]).strip()
 
     return text
 
