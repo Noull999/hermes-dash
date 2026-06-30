@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ClientLayout from '@/components/ui/ClientLayout';
 import { useHermesStore } from '@/store/useHermesStore';
@@ -28,10 +28,14 @@ export default function DashboardPage() {
   const router = useRouter();
   const orbState = useHermesStore((s) => s.orbState);
   const health = useHermesStore((s) => s.health);
-  const greeting = getTimeOfDay();
+  const [greeting, setGreeting] = useState('');
   const online = health?.status === 'ok';
   const healthLoaded = health !== null;
   const connectionStatus = useChatStore((s) => s.connectionStatus);
+
+  useEffect(() => {
+    setGreeting(getTimeOfDay());
+  }, []);
 
   return (
     <ClientLayout>
