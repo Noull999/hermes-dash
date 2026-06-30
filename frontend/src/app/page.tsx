@@ -65,6 +65,15 @@ export default function HomePage() {
   // ── Sessions ──
   const [currentSessionId, setCurrentSessionId] = useState('');
 
+  // ── Drag & Drop ──
+  const [dragOver, setDragOver] = useState(false);
+  const [pendingAttachment, setPendingAttachment] = useState<{
+    type: 'image' | 'text';
+    filename: string;
+    content: string;
+    mime?: string;
+  } | null>(null);
+
   const handleSelectSession = useCallback((id: string) => {
     setCurrentSessionId(id);
     // Clear messages on session switch (WS reconnect will load history)
@@ -99,6 +108,38 @@ export default function HomePage() {
       sendMessage(text.trim(), { source: 'voice' });
     }
   }, [sendMessage]);
+
+  // ── Drag & Drop handlers ──
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const files = e.dataTransfer.files;
+    if (!files.length) return;
+
+    const file = files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/proxy/api/upload', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer dev-token' },
+        body: formData,
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.type === 'image' || data.type === 'text') {
+        setPendingAttachment({
+          type: data.type,
+          filename: data.filename,
+          content: data.type === 'image' ? data.base64 : data.content,
+          mime: data.mime,
+        });
+      }
+    } catch {
+      // silently fail
+    }
+  }, []);
 
   const orbHeight = orbCompact ? 'h-0 overflow-hidden' : 'h-[200px]';
 
@@ -179,8 +220,24 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* ── Drop zone overlay ── */}
+      {dragOver && (
+        <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
+          <div className="rounded-2xl border-2 border-dashed border-[var(--cyan)] bg-[rgba(0,212,255,0.06)] backdrop-blur-sm px-8 py-6 text-center">
+            <p className="text-sm text-[var(--cyan)] font-semibold">📎 Suelta el archivo</p>
+            <p className="text-[10px] text-[var(--text-muted)] mt-1">PDF, PNG, JPG, TXT, código...</p>
+          </div>
+        </div>
+      )}
+
       {/* ── Scrollable content ── */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+      <div
+        ref={scrollRef}
+        className={`flex-1 overflow-y-auto transition-all ${dragOver ? 'bg-[rgba(0,212,255,0.03)]' : ''}`}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+      >
         {/* ── Orb hero ── */}
         <div
           className={classNames(
@@ -310,7 +367,10 @@ export default function HomePage() {
 
       {/* ── Input ── */}
       <div className="shrink-0 pb-[60px] bg-[var(--void)]">
-        <InputBox />
+        <InputBox
+          attachment={pendingAttachment}
+          onRemoveAttachment={() => setPendingAttachment(null)}
+        />
       </div>
 
       {/* ── Bottom Nav ── */}
