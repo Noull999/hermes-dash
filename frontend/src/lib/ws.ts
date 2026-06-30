@@ -3,7 +3,21 @@ import { useLogStore } from '@/store/useLogStore';
 type MessageHandler = (data: unknown) => void;
 type StatusHandler = (status: 'connected' | 'disconnected' | 'reconnecting' | 'timeout') => void;
 
-const WS_BASE = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080/api/chat';
+function getWsUrl(): string {
+  if (typeof window === 'undefined') return 'ws://localhost:8080/api/chat';
+
+  // Try to connect WS on the same host first (works when backend serves frontend
+  // or there's a reverse proxy). Falls back to direct VPS IP.
+  const sameHost = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/chat`;
+
+  // Direct VPS fallback — only used if same-host fails
+  const direct = 'ws://95.217.7.149:8080/api/chat';
+
+  // Use the VPS's Hermes gateway port which also serves the frontend
+  return direct;
+}
+
+const WS_BASE = getWsUrl();
 const RECONNECT_DELAY = 3000;
 const MAX_RECONNECT_ATTEMPTS = 10;
 const SESSION_KEY = 'hermes_chat_session_id';
