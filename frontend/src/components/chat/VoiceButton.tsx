@@ -108,7 +108,7 @@ export default function VoiceButton({ onResult, disabled = false, onActiveChange
     const rec = new (Ctor as SpeechRecognitionConstructor)();
     rec.lang = 'es-CL';
     rec.interimResults = true;
-    rec.continuous = true;
+    rec.continuous = false; // Android Chrome ignores continuous:true; reiniciamos manualmente
     rec.maxAlternatives = 1;
 
     rec.onstart = () => {
@@ -135,7 +135,6 @@ export default function VoiceButton({ onResult, disabled = false, onActiveChange
       if (modeRef.current === 'auto' && (gotFinal || interim)) {
         clearSilence();
         silenceTimerRef.current = setTimeout(() => {
-          // silencio tras hablar → enviar, pero seguir escuchando
           flushBuffer();
           setInterimText('');
         }, SILENCE_MS);
@@ -146,6 +145,9 @@ export default function VoiceButton({ onResult, disabled = false, onActiveChange
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         setSupported(false);
       }
+      // En cualquier error, resetear estado de escucha
+      listeningRef.current = false;
+      setListening(false);
     };
 
     const stopFully = () => {
@@ -158,25 +160,40 @@ export default function VoiceButton({ onResult, disabled = false, onActiveChange
     };
 
     rec.onend = () => {
-      // Cierre intencional (tap) o bloqueo por respuesta → enviar lo que quede y parar
-      if (stopRequestedRef.current || disabledRef.current) {
+      listeningRef.current = false;
+      setListening(false);
+
+      // Cierre intencional (tap stop) → enviar buffer y parar
+      if (stopRequestedRef.current) {
         stopRequestedRef.current = false;
-        const wasDisabled = disabledRef.current;
         clearSilence();
-        listeningRef.current = false;
-        setListening(false);
         setInterimText('');
         onActiveChange?.(false);
+        wantListeningRef.current = false;
         flushBuffer();
-        // en 'auto', si solo fue pausa por respuesta, recordamos la intención
-        if (!wasDisabled) wantListeningRef.current = false;
         return;
       }
-      // El navegador cortó solo pero seguimos en modo escucha → reanudar sin enviar
-      try {
-        rec.start();
-      } catch {
-        stopFully();
+
+      // Pausa porque Hermès está respondiendo → guardar intención, no enviar
+      if (disabledRef.current) {
+        clearSilence();
+        setInterimText('');
+        onActiveChange?.(false);
+        // wantListeningRef queda true → se reanuda cuando disabled vuelva a false
+        return;
+      }
+
+      // Fin natural de frase (continuous:false) → reiniciar si seguimos queriendo escuchar
+      if (wantListeningRef.current) {
+        try {
+          rec.start();
+          // onstart actualizará listeningRef y setListening
+        } catch {
+          stopFully();
+        }
+      } else {
+        setInterimText('');
+        onActiveChange?.(false);
       }
     };
 
