@@ -253,6 +253,59 @@ def list_messages(
         conn.close()
 
 
+# -- Search ---------------------------------------------------------------
+
+@router.get("/api/sessions/search")
+def search_sessions(
+    q: str = Query(..., min_length=1, max_length=200),
+    limit: int = Query(20, ge=1, le=100),
+    _token: str = Depends(verify_token),
+) -> list[dict]:
+    """Search messages across all sessions via LIKE query."""
+    conn = _get_db()
+    try:
+        rows = conn.execute("""
+            SELECT
+                s.id AS session_id,
+                s.title AS session_title,
+                m.content,
+                m.role,
+                m.timestamp
+            FROM messages m
+            JOIN sessions s ON s.id = m.session_id
+            WHERE m.content LIKE '%' || ? || '%'
+            ORDER BY m.timestamp DESC
+            LIMIT ?
+        """, (q, limit)).fetchall()
+
+        results = []
+        for r in rows:
+            content: str = r["content"]
+            # Extract a snippet of ~120 chars around the match
+            idx = content.lower().find(q.lower())
+            if idx == -1:
+                snippet = content[:120]
+            else:
+                start = max(0, idx - 40)
+                end = min(len(content), idx + len(q) + 80)
+                snippet = content[start:end]
+                if start > 0:
+                    snippet = "..." + snippet
+                if end < len(content):
+                    snippet = snippet + "..."
+
+            results.append({
+                "session_id": r["session_id"],
+                "session_title": r["session_title"],
+                "snippet": snippet,
+                "role": r["role"],
+                "timestamp": r["timestamp"],
+            })
+        return results
+    finally:
+        conn.close()
+
+
 # -- Auto-title (called from chat_ws) ------------------------------------
 
 def auto_title_session(session_id: str) -> str:

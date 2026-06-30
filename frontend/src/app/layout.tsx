@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Chakra_Petch, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
-import CommandPaletteWrapper from '@/components/ui/CommandPaletteWrapper';
+import ClientWidgets from '@/components/ui/ClientWidgets';
 
 // Display: technical squared HUD face (JARVIS readouts)
 const display = Chakra_Petch({
@@ -58,8 +58,8 @@ export default function RootLayout({
 
         <div id="app-root">{children}</div>
 
-        {/* Global Command Palette (Cmd+K) */}
-        <CommandPaletteWrapper />
+        {/* Global widgets: Command Palette + Search Panel */}
+        <ClientWidgets />
       </body>
     </html>
   );

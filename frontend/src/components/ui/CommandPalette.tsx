@@ -7,6 +7,7 @@ import {
   Briefcase, Settings, Wifi, Mic, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import { useChatStore } from '@/store/useChatStore';
+import { useSearchStore } from '@/store/useSearchStore';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface Command {
@@ -101,7 +102,7 @@ function useCommands() {
       keywords: ['buscar', 'search', 'conversaciones', 'historial', 'mensajes', 'encuentra'],
       icon: Search,
       section: 'Acciones',
-      action: () => { /* placeholder — Fase 4 implementará búsqueda */ },
+      action: () => { useSearchStore.getState().setOpen(true); },
     },
     {
       id: 'toggle-voice',
