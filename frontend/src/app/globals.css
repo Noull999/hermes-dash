@@ -317,6 +317,37 @@ html, body {
   animation: slideIn 0.2s ease-out;
 }
 
+/* ── Bento Grid Dashboard ── */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.bento-hero {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 768px) {
+  .bento-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .bento-grid > * {
+    grid-column: span 1 !important;
+  }
+  .bento-grid > .col-span-full {
+    grid-column: 1 / -1 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .bento-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
 /* Respect users who prefer less motion — kill the ambient sweeps/spins. */
 @media (prefers-reduced-motion: reduce) {
   .hud-scan,

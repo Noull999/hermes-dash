@@ -1,19 +1,19 @@
 'use client';
 
-import { useEffect, useState, startTransition } from 'react';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import ClientLayout from '@/components/ui/ClientLayout';
-import OrbCanvas from '@/components/orb/OrbCanvas';
-import Card from '@/components/ui/Card';
-import WeatherWidget from '@/components/dashboard/WeatherWidget';
-import TokenCard from '@/components/dashboard/TokenCard';
-import SystemCard from '@/components/dashboard/SystemCard';
-import TimelineCard from '@/components/dashboard/TimelineCard';
-import WeeklyChart from '@/components/dashboard/WeeklyChart';
 import { useHermesStore } from '@/store/useHermesStore';
+import { useChatStore } from '@/store/useChatStore';
+import BentoCard from '@/components/dashboard/BentoCard';
+import SystemStatus from '@/components/dashboard/SystemStatus';
+import NextEvent from '@/components/dashboard/NextEvent';
+import TokenBudget from '@/components/dashboard/TokenBudget';
+import ActiveJobs from '@/components/dashboard/ActiveJobs';
+import RecentRepos from '@/components/dashboard/RecentRepos';
+import QuickChat from '@/components/dashboard/QuickChat';
 import { getTimeOfDay } from '@/lib/utils';
-import { BarChart3, Code2, Brain, ArrowUpRight, Calendar, MapPin } from 'lucide-react';
-import Link from 'next/link';
-import { getCalendarEvents, CalendarEvent } from '@/lib/api';
+import { Sparkles, Wifi, WifiOff } from 'lucide-react';
 
 const STATE_LABEL: Record<string, string> = {
   idle: 'STANDBY',
@@ -22,175 +22,81 @@ const STATE_LABEL: Record<string, string> = {
   error: 'ALERTA',
 };
 
-function TodayCard() {
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    startTransition(() => { load(); });
-  }, []);
-
-  async function load() {
-    try {
-      const data = await getCalendarEvents(1);
-      const today = new Date().toDateString();
-      const todays = (data.events || []).filter(
-        (e) => new Date(e.start).toDateString() === today
-      );
-      setEvents(todays);
-    } catch {
-      setEvents([]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <Card className="p-4">
-      <div className="hud-divider mb-3">
-        <Calendar className="w-3.5 h-3.5 text-[var(--cyan)]" />
-        <span className="hud-label text-[10px] text-[var(--text)]">HOY</span>
-        {!loading && (
-          <span className="hud-readout text-[10px] text-[var(--text-faint)]">
-            {events.length} {events.length === 1 ? 'EVENTO' : 'EVENTOS'}
-          </span>
-        )}
-      </div>
-
-      {loading ? (
-        <div className="space-y-2">
-          <div className="skeleton h-10" />
-          <div className="skeleton h-10" />
-        </div>
-      ) : events.length === 0 ? (
-        <p className="text-[var(--text-faint)] text-xs">Sin eventos programados para hoy.</p>
-      ) : (
-        <div className="space-y-2">
-          {events.map((ev) => (
-            <div key={ev.id} className="relative pl-3">
-              <span className="absolute left-0 top-0 bottom-0 w-[2px] bg-[var(--cyan)] shadow-[0_0_6px_var(--cyan)]" />
-              <div className="hud-readout text-[11px] text-[var(--cyan)]">
-                {ev.allDay
-                  ? 'TODO EL DÍA'
-                  : new Date(ev.start).toLocaleTimeString('es-CL', {
-                      hour: '2-digit', minute: '2-digit', hour12: false,
-                    })}
-              </div>
-              <div className="text-sm text-[var(--text)] leading-snug">{ev.title}</div>
-              {ev.location && (
-                <div className="flex items-center gap-1 text-[10px] text-[var(--text-faint)] mt-0.5">
-                  <MapPin size={9} /> <span className="truncate">{ev.location}</span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </Card>
-  );
-}
-
 export default function DashboardPage() {
+  const router = useRouter();
   const orbState = useHermesStore((s) => s.orbState);
   const health = useHermesStore((s) => s.health);
   const greeting = getTimeOfDay();
   const online = health?.status === 'ok';
+  const healthLoaded = health !== null;
+  const connectionStatus = useChatStore((s) => s.connectionStatus);
 
   return (
     <ClientLayout>
-      <div className="space-y-3 pb-24">
-        {/* ── Orb command hero ──────────────────────────────────── */}
-        <div className="relative h-[300px] -mx-4 -mt-4 overflow-hidden border-b border-[var(--hairline)]">
-          <OrbCanvas />
-
-          <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center pointer-events-none">
-            <div className="reticle w-[230px] h-[230px] rounded-full border border-[var(--hairline)]" />
+      {/* ── Bento Grid Dashboard ── */}
+      <div className="bento-grid px-4 pb-24">
+        {/* Hero — compact orb + status */}
+        <div className="bento-hero flex items-center justify-between mb-2 col-span-full">
+          <div>
+            <div className="hud-label text-[8px] text-[var(--text-faint)]">{greeting}</div>
+            <h1 className="text-xl font-bold tracking-[0.18em] text-[var(--text)] glow-text mt-0.5">
+              JOSÉ
+            </h1>
           </div>
-          <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center pointer-events-none">
-            <div className="reticle-rev w-[186px] h-[186px] rounded-full border border-dashed border-[rgba(79,227,255,0.18)]" />
-          </div>
-
-          <div className="absolute top-3 left-3 hud-label text-[8px] text-[var(--text-faint)]">
-            SYS.HERMES//v2
-          </div>
-          <div className="absolute top-3 right-3 hud-label text-[8px] text-[var(--text-faint)]">
-            PTO.MONTT · CL
-          </div>
-
-          <div className="absolute top-0 left-0 w-full h-full pointer-events-none bg-gradient-to-t from-[var(--void)] via-transparent to-transparent" />
-
-          <div className="absolute top-0 left-0 w-full h-full flex flex-col justify-end items-center px-5 pb-4 text-center">
-            <div className="hud-label text-[9px] mb-1">{greeting}</div>
-            <h1 className="text-2xl font-bold tracking-[0.18em] text-[var(--text)] glow-text">JOSÉ</h1>
-            <div className="mt-2 flex items-center justify-center gap-2">
-              <span
-                className={`inline-flex items-center gap-1.5 px-2.5 h-6 border rounded-[2px] text-[10px] font-mono tracking-[0.14em] ${
-                  orbState === 'error'
-                    ? 'border-[rgba(255,93,108,0.3)] text-[var(--error)]'
-                    : orbState === 'success'
-                    ? 'border-[rgba(93,255,176,0.3)] text-[var(--success)]'
-                    : 'border-[var(--hairline-strong)] text-[var(--cyan)]'
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-                {STATE_LABEL[orbState] || 'STANDBY'}
-              </span>
-              <span
-                className={`inline-flex items-center gap-1.5 px-2.5 h-6 border rounded-[2px] text-[10px] font-mono tracking-[0.14em] ${
-                  online ? 'border-[rgba(93,255,176,0.3)] text-[var(--success)]' : 'border-[rgba(255,93,108,0.3)] text-[var(--error)]'
-                }`}
-              >
-                API {online ? 'OK' : 'ERR'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Quick actions ── */}
-        <div className="grid grid-cols-2 gap-2 px-4">
-          {[
-            { href: '/dashboard', label: 'PANEL', Icon: BarChart3 },
-            { href: '/repos', label: 'REPOS', Icon: Code2 },
-          ].map(({ href, label, Icon }, i) => (
-            <Link
-              key={href}
-              href={href}
-              className="glass boot-in flex flex-col items-center gap-2 py-3.5 hover:-translate-y-0.5"
-              style={{ animationDelay: `${i * 60}ms` }}
+          <div className="flex items-center gap-2">
+            <span
+              className={`inline-flex items-center gap-1 px-2 h-5 border rounded-[2px] text-[9px] font-mono tracking-[0.14em] ${
+                orbState === 'error'
+                  ? 'border-[rgba(255,93,108,0.3)] text-[var(--error)]'
+                  : orbState === 'success'
+                  ? 'border-[rgba(93,255,176,0.3)] text-[var(--success)]'
+                  : 'border-[var(--hairline-strong)] text-[var(--cyan)]'
+              }`}
             >
-              <Icon size={18} className="text-[var(--cyan)] drop-shadow-[0_0_6px_var(--cyan)]" />
-              <span className="hud-label text-[9px]">{label}</span>
-            </Link>
-          ))}
+              <span className="w-1 h-1 rounded-full bg-current animate-pulse" />
+              {STATE_LABEL[orbState] || 'STANDBY'}
+            </span>
+            <span
+              className={`inline-flex items-center gap-1 px-2 h-5 border rounded-[2px] text-[9px] font-mono tracking-[0.14em] ${
+                !healthLoaded
+                  ? 'border-[var(--hairline-strong)] text-[var(--text-muted)]'
+                  : online
+                  ? 'border-[rgba(93,255,176,0.3)] text-[var(--success)]'
+                  : 'border-[rgba(255,93,108,0.3)] text-[var(--error)]'
+              }`}
+            >
+              <span className="w-1 h-1 rounded-full bg-current" />
+              {!healthLoaded ? '---' : online ? 'API OK' : 'API ERR'}
+            </span>
+          </div>
         </div>
 
-        {/* ── Dashboard widgets — single column on mobile, 2-col grid on desktop ── */}
-        <div className="px-4 space-y-4 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-4 lg:items-start">
-          <WeatherWidget />
-          <TokenCard />
-          <SystemCard />
-          <TodayCard />
-          <div className="lg:col-span-2"><WeeklyChart /></div>
-          <div className="lg:col-span-2"><TimelineCard /></div>
-        </div>
+        {/* ── Row 1: System + NextEvent + TokenBudget ── */}
+        <BentoCard colSpan={2} title="SISTEMA">
+          <SystemStatus />
+        </BentoCard>
 
-        {/* ── Second brain link ── */}
-        <div className="px-4">
-          <Link href="/brain" className="block boot-in">
-            <Card hover className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-[3px] border border-[rgba(255,177,61,0.25)] bg-[rgba(255,177,61,0.07)] flex items-center justify-center">
-                  <Brain size={16} className="text-[var(--amber)]" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold tracking-wide text-[var(--text)]">SECOND BRAIN</h3>
-                  <p className="hud-label text-[8px] mt-0.5">NOTAS · IDEAS · SNIPPETS</p>
-                </div>
-              </div>
-              <ArrowUpRight size={16} className="text-[var(--text-muted)]" />
-            </Card>
-          </Link>
-        </div>
+        <BentoCard colSpan={1} title="PRÓXIMO EVENTO">
+          <NextEvent />
+        </BentoCard>
+
+        <BentoCard colSpan={1} title="TOKENS">
+          <TokenBudget />
+        </BentoCard>
+
+        {/* ── Row 2: ActiveJobs + RecentRepos ── */}
+        <BentoCard colSpan={2} title="TRABAJOS ACTIVOS">
+          <ActiveJobs />
+        </BentoCard>
+
+        <BentoCard colSpan={2} title="REPOSITORIOS">
+          <RecentRepos />
+        </BentoCard>
+
+        {/* ── Row 3: QuickChat ── */}
+        <BentoCard colSpan={4} title="MENSAJE RÁPIDO" className="col-span-full md:col-span-4">
+          <QuickChat />
+        </BentoCard>
       </div>
     </ClientLayout>
   );
