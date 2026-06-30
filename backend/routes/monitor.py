@@ -226,21 +226,37 @@ async def get_monitor(_token: str = Depends(verify_token)):
     google_details = {"token_exists": google_ok}
 
     if google_ok:
-        # Use the official Hermes setup script to check
-        setup_script = str(Path.home() / ".hermes" / "hermes-agent" / "skills" / "productivity" / "google-workspace" / "scripts" / "setup.py")
-        if Path(setup_script).exists():
-            result = subprocess.run(
-                [setup_script, "--check"],
-                capture_output=True, text=True, timeout=15
-            )
-            if result.returncode == 0:
+        try:
+            from google.auth.transport.requests import Request as GoogleRequest
+            from google.oauth2.credentials import Credentials
+
+            creds = Credentials.from_authorized_user_file(str(_GOOGLE_TOKEN))
+            if creds.expired and creds.refresh_token:
+                creds.refresh(GoogleRequest())
+                _GOOGLE_TOKEN.write_text(json.dumps(json.loads(creds.to_json()), indent=2))
                 google_status = "up"
-            else:
+            elif creds.expired and not creds.refresh_token:
                 google_status = "degraded"
-                google_error = result.stdout.strip() or "Token revocado o expirado"
-        else:
+                google_error = "Token expirado sin refresh_token"
+            else:
+                google_status = "up"
+        except ImportError:
+            # Fallback: check file exists and is non-empty
+            try:
+                data = json.loads(_GOOGLE_TOKEN.read_text())
+                google_status = "degraded"
+                google_error = "Paquetes Google no instalados en backend, token existe"
+                google_details["has_token"] = bool(data.get("refresh_token"))
+            except Exception:
+                google_status = "degraded"
+                google_error = "Token file corrupto"
+        except Exception as e:
             google_status = "degraded"
-            google_error = "Script setup.py no encontrado"
+            err_str = str(e)
+            if "invalid_grant" in err_str.lower() or "token_revoked" in err_str.lower():
+                google_error = "Token revocado, re-authentica usando el script setup.py"
+            else:
+                google_error = err_str[:80]
     else:
         google_status = "down"
         google_error = "Token file no encontrado"
