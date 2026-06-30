@@ -13,7 +13,7 @@ import { useHermesStore } from '@/store/useHermesStore';
 import { getTimeOfDay, classNames } from '@/lib/utils';
 import DebugPanel from '@/components/DebugPanel';
 import {
-  Wifi, WifiOff, Mic, Sparkles,
+  Wifi, WifiOff, Mic, Sparkles, Search,
   BarChart3, FolderGit2, Mail, CalendarDays, Briefcase, Brain, Settings,
 } from 'lucide-react';
 
@@ -128,6 +128,19 @@ export default function HomePage() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {/* Command Palette trigger */}
+          <button
+            onClick={() => {
+              window.dispatchEvent(new KeyboardEvent('keydown', {
+                key: 'k', metaKey: true, bubbles: true,
+              }));
+            }}
+            className="flex items-center gap-1.5 px-2 py-1 border border-[var(--hairline)] rounded text-[var(--text-faint)] hover:text-[var(--text-muted)] transition-all sm:px-2"
+            title="Buscar (Cmd+K)"
+          >
+            <Search size={12} />
+            <span className="hidden sm:inline hud-label text-[9px]">CMD+K</span>
+          </button>
           <SessionsPanel
             currentSessionId={currentSessionId}
             onSelectSession={handleSelectSession}
