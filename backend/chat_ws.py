@@ -55,9 +55,11 @@ async def _get_or_create_hermes_session(dashboard_session_id: str) -> str:
         headers = {"Authorization": f"Bearer {_API_KEY}"}
         async with aiohttp.ClientSession(headers=headers) as session:
             # Create a new Hermes session
+            import uuid
+            session_title = f"Dash {dashboard_session_id[:8]} {uuid.uuid4().hex[:6]}"
             async with session.post(
                 f"{_GATEWAY_URL}/api/sessions",
-                json={"title": f"Dashboard {dashboard_session_id[:8]}"}
+                json={"title": session_title}
             ) as resp:
                 if resp.status != 200:
                     text = await resp.text()
