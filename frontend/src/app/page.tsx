@@ -142,7 +142,7 @@ export default function HomePage() {
     }
   }, []);
 
-  const orbHeight = orbCompact ? 'h-0 overflow-hidden' : 'h-[200px]';
+  const orbHeight = orbCompact ? 'h-0 overflow-hidden' : 'h-[320px]';
 
   return (
     <div className="flex flex-col h-dvh bg-[var(--void)]">
@@ -260,10 +260,10 @@ export default function HomePage() {
 
           {/* Reticle */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="reticle w-[168px] h-[168px] rounded-full border border-[var(--hairline)]" />
+            <div className="reticle w-[240px] h-[240px] rounded-full border border-[var(--hairline)]" />
           </div>
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="reticle-rev w-[132px] h-[132px] rounded-full border border-dashed border-[rgba(79,227,255,0.15)]" />
+            <div className="reticle-rev w-[190px] h-[190px] rounded-full border border-dashed border-[rgba(79,227,255,0.15)]" />
           </div>
 
           {/* Corner telemetry */}
