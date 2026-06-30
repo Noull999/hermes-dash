@@ -65,7 +65,7 @@ async def _get_or_create_hermes_session(dashboard_session_id: str) -> str:
                     text = await resp.text()
                     raise RuntimeError(f"Error creating Hermes session: {resp.status} {text}")
                 data = await resp.json()
-                hermes_session_id = data.get("id", "")
+                hermes_session_id = data.get("session", {}).get("id", "")
                 if not hermes_session_id:
                     raise RuntimeError("No session id in Hermes response")
                 _hermes_sessions[dashboard_session_id] = hermes_session_id
