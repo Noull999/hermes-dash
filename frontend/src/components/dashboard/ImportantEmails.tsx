@@ -113,9 +113,12 @@ export default function ImportantEmails() {
             : '';
 
           return (
-            <div
+            <a
               key={email.id}
-              className="flex items-start gap-2 px-2 py-1.5 rounded border border-[var(--hairline)] bg-[rgba(0,0,0,0.15)] hover:border-[rgba(255,45,85,0.2)] transition-colors"
+              href={`https://mail.google.com/mail/u/0/#inbox/${email.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-start gap-2 px-2 py-1.5 rounded border border-[var(--hairline)] bg-[rgba(0,0,0,0.15)] hover:border-[rgba(255,45,85,0.3)] hover:bg-[rgba(255,45,85,0.04)] transition-colors cursor-pointer block"
             >
               <span className="text-[10px] mt-0.5 shrink-0">{icon}</span>
               <div className="flex-1 min-w-0">
@@ -136,18 +139,18 @@ export default function ImportantEmails() {
                   {email.subject}
                 </div>
               </div>
-            </div>
+            </a>
           );
         })}
       </div>
 
       {/* More link */}
-      {emails.length > 5 && (
+      {emails.length > 0 && (
         <a
           href="/email"
           className="block text-center hud-label text-[8px] text-[var(--text-faint)] hover:text-[var(--cyan)] transition-colors py-1"
         >
-          +{emails.length - 5} más → ver todos
+          {emails.length > 5 ? `+${emails.length - 5} más → ` : ''}Ir al gestor de correos →
         </a>
       )}
     </div>
