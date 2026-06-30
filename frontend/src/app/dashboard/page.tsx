@@ -8,7 +8,7 @@ import { useChatStore } from '@/store/useChatStore';
 import OrbCanvas from '@/components/orb/OrbCanvas';
 import BentoCard from '@/components/dashboard/BentoCard';
 import SystemStatus from '@/components/dashboard/SystemStatus';
-import NextEvent from '@/components/dashboard/NextEvent';
+import ServiceMonitor from '@/components/dashboard/ServiceMonitor';
 import TokenBudget from '@/components/dashboard/TokenBudget';
 import ActiveJobs from '@/components/dashboard/ActiveJobs';
 import RecentRepos from '@/components/dashboard/RecentRepos';
@@ -85,8 +85,8 @@ export default function DashboardPage() {
           <SystemStatus />
         </BentoCard>
 
-        <BentoCard colSpan={1} title="PRÓXIMO EVENTO">
-          <NextEvent />
+        <BentoCard colSpan={1} title="MONITOR DE SERVICIOS">
+          <ServiceMonitor />
         </BentoCard>
 
         <BentoCard colSpan={1} title="TOKENS">

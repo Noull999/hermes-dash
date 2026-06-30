@@ -23,6 +23,7 @@ from routes.push import router as push_router
 from routes.gamification import router as gamification_router
 from routes.webhook import router as webhook_router
 from routes.memory import router as memory_router
+from routes.monitor import router as monitor_router
 from routes.sessions import router as sessions_router
 from routes.upload import router as upload_router
 from routes.activity import router as activity_router
@@ -68,6 +69,7 @@ app.include_router(claude_router)
 app.include_router(brain_router)
 app.include_router(reminders_router)
 app.include_router(memory_router)
+app.include_router(monitor_router)
 app.include_router(upload_router)
 app.include_router(activity_router)
 app.include_router(email_router)

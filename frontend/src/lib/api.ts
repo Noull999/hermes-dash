@@ -357,3 +357,27 @@ export async function trackGamification(payload: GamificationTrackPayload) {
     body: JSON.stringify(payload),
   });
 }
+
+// ── Service Monitor ────────────────────────────────────────────────────
+export interface MonitorService {
+  name: string;
+  key: string;
+  icon: string;
+  status: 'up' | 'down' | 'degraded' | 'unknown';
+  http_status: number | null;
+  latency_ms: number | null;
+  error: string | null;
+  url?: string;
+  details?: Record<string, unknown>;
+}
+
+export interface MonitorData {
+  services: MonitorService[];
+  overall: 'all_ok' | 'issues_detected';
+  checked_at: string;
+  total: number;
+}
+
+export async function getMonitor() {
+  return request<MonitorData>('/api/monitor');
+}
