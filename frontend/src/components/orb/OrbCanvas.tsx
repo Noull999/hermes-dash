@@ -1,24 +1,48 @@
 'use client';
 
-import { useRef, useEffect, useMemo, useState, startTransition } from 'react';
+import { useRef, useEffect, useState, startTransition } from 'react';
 import { useHermesStore } from '@/store/useHermesStore';
+import { useActivityStore } from '@/store/useActivityStore';
 
 // Simple Three.js orb with particles - no imports, pure canvas fallback
-// Uses a lightweight approach with a canvas 2D fallback
 
 function particleNoise(t: number, seed: number): number {
   return Math.sin(t * 0.5 + seed * 6.283) * 0.5 + 0.5;
 }
 
+function getHourColors(): { r: number; g: number; b: number } {
+  const h = new Date().getHours();
+  if (h >= 6 && h < 12) return { r: 1.0, g: 0.75, b: 0.3 };    // Morning gold
+  if (h >= 12 && h < 18) return { r: 0, g: 0.87, b: 1.0 };      // Afternoon cyan
+  if (h >= 18 && h < 22) return { r: 0.6, g: 0.3, b: 1.0 };     // Evening purple
+  return { r: 0.1, g: 0.15, b: 0.4 };                             // Night dark blue
+}
+
+function easeInOut(t: number): number {
+  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+}
+
 function Orb3DCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const orbState = useHermesStore((s) => s.orbState);
+  const system = useHermesStore((s) => s.system);
+  const events = useActivityStore((s) => s.events);
   const [webglSupported, setWebglSupported] = useState(true);
   const animRef = useRef<number>(0);
   const timeRef = useRef(0);
+  const errorFlashRef = useRef(0);
+
+  const cpuHigh = (system?.cpu_pct || 0) > 80;
+  const gatewayOffline = system?.gateway !== 'online';
+
+  // Detect recent error from activity feed
+  useEffect(() => {
+    if (events.length > 0 && events[0].type === 'error') {
+      errorFlashRef.current = 3.0; // 3 second flash
+    }
+  }, [events]);
 
   useEffect(() => {
-    // Check WebGL support
     const testCanvas = document.createElement('canvas');
     const gl = testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl');
     if (!gl) startTransition(() => setWebglSupported(false));
@@ -60,7 +84,7 @@ function Orb3DCanvas() {
       });
     }
 
-    const colors = {
+    const stateColors = {
       idle: { r: 0, g: 0.53, b: 1 },
       processing: { r: 0, g: 0.83, b: 1 },
       success: { r: 0.13, g: 0.77, b: 0.34 },
@@ -80,6 +104,14 @@ function Orb3DCanvas() {
       timeRef.current = timestamp * 0.001;
       const t = timeRef.current;
 
+      // Decay error flash
+      if (errorFlashRef.current > 0) {
+        errorFlashRef.current -= 1 / 60; // ~60fps decay
+      }
+
+      // Hour-based color adjustment
+      const hourColor = getHourColors();
+
       // Smooth state transition
       if (stateAnim.targetState !== orbState) {
         stateAnim.targetState = orbState;
@@ -88,41 +120,65 @@ function Orb3DCanvas() {
       stateAnim.progress = Math.min(stateAnim.progress + 0.02, 1);
       stateAnim.currentState = stateAnim.progress < 1 ? stateAnim.currentState : orbState;
 
-      const src = colors[stateAnim.currentState as keyof typeof colors] || colors.idle;
-      const dst = colors[stateAnim.targetState as keyof typeof colors] || colors.idle;
+      const src = stateColors[stateAnim.currentState as keyof typeof stateColors] || stateColors.idle;
+      const dst = stateColors[stateAnim.targetState as keyof typeof stateColors] || stateColors.idle;
       const p = easeInOut(stateAnim.progress);
-      const cr = src.r + (dst.r - src.r) * p;
-      const cg = src.g + (dst.g - src.g) * p;
-      const cb = src.b + (dst.b - src.b) * p;
+
+      // Blend state color with hour color
+      const stateR = src.r + (dst.r - src.r) * p;
+      const stateG = src.g + (dst.g - src.g) * p;
+      const stateB = src.b + (dst.b - src.b) * p;
+
+      // Hour influence: 30% blend
+      const hr = stateR * 0.7 + hourColor.r * 0.3;
+      const hg = stateG * 0.7 + hourColor.g * 0.3;
+      const hb = stateB * 0.7 + hourColor.b * 0.3;
+
+      // Error flash overlay
+      let cr = hr;
+      let cg = hg;
+      let cb = hb;
+      if (errorFlashRef.current > 0) {
+        const flashAmount = Math.min(errorFlashRef.current, 1) * 0.5;
+        cr = hr + (1 - hr) * flashAmount;
+        cg = hg * (1 - flashAmount);
+        cb = hb * (1 - flashAmount);
+      }
+
+      // Gateway offline: dim the orb
+      let brightness = 1.0;
+      if (gatewayOffline) {
+        brightness = 0.2;
+      }
 
       // Clear
       ctx.clearRect(0, 0, w, h);
 
       // Glow
       const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(w, h) * 0.5);
-      gradient.addColorStop(0, `rgba(${cr * 255},${cg * 255},${cb * 255},0.08)`);
-      gradient.addColorStop(0.5, `rgba(${cr * 255},${cg * 255},${cb * 255},0.03)`);
+      gradient.addColorStop(0, `rgba(${cr * 255 * brightness},${cg * 255 * brightness},${cb * 255 * brightness},0.08)`);
+      gradient.addColorStop(0.5, `rgba(${cr * 255 * brightness},${cg * 255 * brightness},${cb * 255 * brightness},0.03)`);
       gradient.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, w, h);
 
       // Draw particles
-      const ringSpeed = orbState === 'processing' ? 1.5 : 0.4;
+      const baseSpeed = cpuHigh ? 2.5 : 0.4;
+      const ringSpeed = orbState === 'processing' ? 1.5 : baseSpeed;
+      const noiseScale = cpuHigh ? 0.12 : 0.05; // More agitation when CPU high
       const scale = Math.min(w, h) * 0.38;
 
-      for (const p of particles) {
-        // Simplex-like noise displacement
-        const nx = particleNoise(t * 0.3 + p.seed, p.seed + 1);
-        const ny = particleNoise(t * 0.3 + p.seed + 10, p.seed + 2);
-        const nz = particleNoise(t * 0.3 + p.seed + 20, p.seed + 3);
+      for (const particle of particles) {
+        const nx = particleNoise(t * 0.3 + particle.seed, particle.seed + 1);
+        const ny = particleNoise(t * 0.3 + particle.seed + 10, particle.seed + 2);
+        const nz = particleNoise(t * 0.3 + particle.seed + 20, particle.seed + 3);
 
-        const noiseDisp = 0.05;
         const rotY = t * 0.15 * ringSpeed;
-        const rotX = Math.sin(t * 0.08) * 0.2;
+        const rotX = Math.sin(t * 0.08 * (cpuHigh ? 2 : 1)) * 0.2;
 
-        let px = p.x + nx * noiseDisp;
-        let py = p.y + ny * noiseDisp;
-        let pz = p.z + nz * noiseDisp;
+        let px = particle.x + nx * noiseScale;
+        let py = particle.y + ny * noiseScale;
+        let pz = particle.z + nz * noiseScale;
 
         // Rotate Y
         const cosY = Math.cos(rotY);
@@ -143,19 +199,18 @@ function Orb3DCanvas() {
         const sx = px * scale + cx;
         const sy = py * scale + cy;
         const depth = pz * 0.5 + 0.5;
-        const size = 1.5 + depth * 2;
-        const alpha = 0.2 + depth * 0.6;
+        const size = (1.5 + depth * 2) * (cpuHigh ? 1.8 : 1);
+        const alpha = (0.2 + depth * 0.6) * brightness;
 
         ctx.beginPath();
         ctx.arc(sx, sy, size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${cr * 255},${cg * 255},${cb * 255},${alpha})`;
+        ctx.fillStyle = `rgba(${cr * 255 * brightness},${cg * 255 * brightness},${cb * 255 * brightness},${alpha})`;
         ctx.fill();
 
-        // Add a subtle glow ring for processing state
-        if (orbState === 'processing') {
+        if (orbState === 'processing' || cpuHigh) {
           ctx.beginPath();
           ctx.arc(sx, sy, size * 2.5, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${cr * 255},${cg * 255},${cb * 255},${alpha * 0.15})`;
+          ctx.fillStyle = `rgba(${cr * 255 * brightness},${cg * 255 * brightness},${cb * 255 * brightness},${alpha * 0.15})`;
           ctx.fill();
         }
       }
@@ -165,17 +220,26 @@ function Orb3DCanvas() {
         const pulse = Math.sin(t * 3) * 0.5 + 0.5;
         ctx.beginPath();
         ctx.arc(cx, cy, 6 + pulse * 4, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(0, 212, 255, ${0.3 + pulse * 0.3})`;
+        ctx.fillStyle = `rgba(${cr * 255 * brightness}, ${cg * 255 * brightness}, ${cb * 255 * brightness}, ${(0.3 + pulse * 0.3) * brightness})`;
         ctx.fill();
       }
 
       if (orbState === 'success') {
-        // Gold ring flash
         const flash = Math.max(0, 1 - stateAnim.progress * 2);
         ctx.beginPath();
         ctx.arc(cx, cy, Math.min(w, h) * 0.15, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(255, 215, 0, ${flash * 0.6})`;
         ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+
+      // Error flash ring
+      if (errorFlashRef.current > 0) {
+        const flashPulse = Math.sin(t * 10) * 0.3 + 0.7;
+        ctx.beginPath();
+        ctx.arc(cx, cy, Math.min(w, h) * 0.2, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 93, 108, ${errorFlashRef.current * 0.4 * flashPulse})`;
+        ctx.lineWidth = 2;
         ctx.stroke();
       }
 
@@ -188,7 +252,7 @@ function Orb3DCanvas() {
       cancelAnimationFrame(animRef.current);
       window.removeEventListener('resize', resize);
     };
-  }, [orbState]);
+  }, [orbState, cpuHigh, gatewayOffline]);
 
   return (
     <canvas
@@ -199,43 +263,60 @@ function Orb3DCanvas() {
   );
 }
 
-function easeInOut(t: number): number {
-  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-}
-
 // SVG fallback
 function OrbSVGFallback() {
   const orbState = useHermesStore((s) => s.orbState);
+  const system = useHermesStore((s) => s.system);
+  const cpuHigh = (system?.cpu_pct || 0) > 80;
+  const gatewayOffline = system?.gateway !== 'online';
+  const hourColor = getHourColors();
 
   const getColors = () => {
-    switch (orbState) {
-      case 'processing': return { main: '#00d4ff', glow: '#0088cc' };
-      case 'success': return { main: '#22c55e', glow: '#16a34a' };
-      case 'error': return { main: '#ef4444', glow: '#dc2626' };
-      default: return { main: '#0066cc', glow: '#004080' };
+    const stateColors: Record<string, { main: string; glow: string }> = {
+      processing: { main: '#00d4ff', glow: '#0088cc' },
+      success: { main: '#22c55e', glow: '#16a34a' },
+      error: { main: '#ef4444', glow: '#dc2626' },
+      idle: { main: '#0066cc', glow: '#004080' },
+    };
+
+    // Blend with hour color
+    if (orbState === 'idle') {
+      const r = Math.round(0 * 0.7 + hourColor.r * 0.3 * 255);
+      const g = Math.round(0.53 * 0.7 + hourColor.g * 0.3 * 255);
+      const b = Math.round(1 * 0.7 + hourColor.b * 0.3 * 255);
+      return { main: `rgb(${r},${g},${b})`, glow: `rgb(${Math.round(r*0.7)},${Math.round(g*0.7)},${Math.round(b*0.7)})` };
     }
+
+    return stateColors[orbState] || stateColors.idle;
   };
 
   const colors = getColors();
+  const brightness = gatewayOffline ? 0.2 : 1;
+  const pulseSpeed = cpuHigh ? '1s' : '3s';
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center">
+    <div
+      className="absolute inset-0 flex items-center justify-center transition-all duration-1000"
+      style={{ opacity: brightness }}
+    >
       <svg width="200" height="200" viewBox="0 0 200 200">
         <defs>
-          <radialGradient id="orb-glow" cx="50%" cy="50%" r="50%">
+          <radialGradient id="orb-glow-svg" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor={colors.main} stopOpacity="0.3" />
             <stop offset="100%" stopColor={colors.main} stopOpacity="0" />
           </radialGradient>
         </defs>
-        <circle cx="100" cy="100" r="80" fill="url(#orb-glow)" />
-        <circle cx="100" cy="100" r="30" fill={colors.main} opacity="0.6" />
+        <circle cx="100" cy="100" r="80" fill="url(#orb-glow-svg)" />
+        <circle cx="100" cy="100" r="30" fill={colors.main} opacity="0.6">
+          <animate attributeName="r" values="28;34;28" dur={pulseSpeed} repeatCount="indefinite" />
+        </circle>
         <circle cx="100" cy="100" r="15" fill={colors.main} opacity="0.9" />
         {Array.from({ length: 24 }).map((_, i) => (
           <circle
             key={i}
             cx={100 + Math.cos((i / 24) * Math.PI * 2) * 50}
             cy={100 + Math.sin((i / 24) * Math.PI * 2) * 50}
-            r="2"
+            r={cpuHigh ? "3" : "2"}
             fill={colors.main}
             opacity="0.4"
           />
