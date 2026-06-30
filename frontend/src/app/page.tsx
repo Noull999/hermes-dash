@@ -140,7 +140,7 @@ export default function HomePage() {
           )}
           <VoiceButton
             onResult={handleVoiceResult}
-            autoStart
+            disabled={isTyping}
             onActiveChange={setMicActive}
           />
         </div>

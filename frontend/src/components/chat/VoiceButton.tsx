@@ -1,12 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Mic, MicOff, VolumeX } from 'lucide-react';
+import { Mic, MicOff } from 'lucide-react';
 import { classNames } from '@/lib/utils';
 
 // ── Web Speech API types ──
-declare const SpeechRecognition: new () => SpeechRecognitionInstance;
-
 interface SpeechRecognitionInstance extends EventTarget {
   lang: string;
   interimResults: boolean;
@@ -44,226 +42,147 @@ interface SpeechRecognitionAlternative {
 type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
 
 interface VoiceButtonProps {
+  /** Se llama UNA vez con la frase completa cuando el usuario cierra el micro. */
   onResult: (text: string) => void;
-  /** Si true, arranca automáticamente al montar el componente */
-  autoStart?: boolean;
-  /** Callback cuando cambia el estado de escucha */
+  /** Cuando true (Hermès respondiendo), el micro se apaga y se bloquea. */
+  disabled?: boolean;
   onActiveChange?: (active: boolean) => void;
 }
 
-// ── Filtro de ruido ──
-const FILLER = /^(uh|ah|mm|hm|eh|ok|sí|si|no|a|e|o|u|)$/i;
-const MIN_LENGTH = 3;
-const DEBOUNCE_MS = 3000;       // max 1 envío cada 3s
-const INACTIVITY_TIMEOUT = 15000; // 15s sin voz válida → pausa
-const COOLDOWN_MS = 10000;       // pausa de 10s tras inactividad
-
+const MIN_LENGTH = 2;
 function isNoise(text: string): boolean {
   const t = text.trim();
   if (t.length < MIN_LENGTH) return true;
   if (/^[.,!?\s]+$/.test(t)) return true;
-  if (FILLER.test(t)) return true;
-  if (/^(\S)\1{0,2}$/.test(t)) return true; // "aaa", "bbb"
   return false;
 }
 
-export default function VoiceButton({
-  onResult,
-  autoStart = false,
-  onActiveChange,
-}: VoiceButtonProps) {
+export default function VoiceButton({ onResult, disabled = false, onActiveChange }: VoiceButtonProps) {
   const [listening, setListening] = useState(false);
   const [supported, setSupported] = useState(true);
-  const [permissionDenied, setPermissionDenied] = useState(false);
-  const [cooldown, setCooldown] = useState(false);
   const [interimText, setInterimText] = useState('');
+
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const listeningRef = useRef(false);
-  const lastSendRef = useRef(0);
-  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasSentRef = useRef(false); // si envió algo válido en este ciclo
+  const finalBufferRef = useRef('');     // transcripción acumulada de este turno
+  const stopRequestedRef = useRef(false); // el usuario tocó para enviar
+  const disabledRef = useRef(disabled);
 
-  // ── Resetear timer de inactividad ──
-  const resetInactivity = useCallback(() => {
-    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-    inactivityTimerRef.current = setTimeout(() => {
-      // 15s sin enviar nada válido → pausar auto-start
-      if (autoStart && !hasSentRef.current) {
-        setCooldown(true);
-        cooldownTimerRef.current = setTimeout(() => {
-          setCooldown(false);
-        }, COOLDOWN_MS);
-      }
-    }, INACTIVITY_TIMEOUT);
-  }, [autoStart]);
+  useEffect(() => { disabledRef.current = disabled; }, [disabled]);
 
-  // ── Inicializar SpeechRecognition ──
+  // ── Inicializar SpeechRecognition una sola vez ──
   useEffect(() => {
-    const SpeechRecognitionCtor =
+    const Ctor =
       (window as unknown as Record<string, unknown>).SpeechRecognition ||
       (window as unknown as Record<string, unknown>).webkitSpeechRecognition;
+    if (!Ctor) { setSupported(false); return; }
 
-    if (!SpeechRecognitionCtor) {
-      setSupported(false);
-      return;
-    }
+    const rec = new (Ctor as SpeechRecognitionConstructor)();
+    rec.lang = 'es-CL';
+    rec.interimResults = true;
+    rec.continuous = true;   // sigue escuchando entre pausas hasta que el usuario cierre
+    rec.maxAlternatives = 1;
 
-    const recognition = new (SpeechRecognitionCtor as SpeechRecognitionConstructor)();
-    recognition.lang = 'es-CL';
-    recognition.interimResults = true;     // feedback visual
-    recognition.maxAlternatives = 1;
-    recognition.continuous = true;         // no se corta en pausas
-
-    recognition.onstart = () => {
+    rec.onstart = () => {
       listeningRef.current = true;
       setListening(true);
-      setInterimText('');
-      hasSentRef.current = false;
       onActiveChange?.(true);
-      resetInactivity();
     };
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let finalText = '';
-      let interimAccum = '';
-
+    rec.onresult = (event: SpeechRecognitionEvent) => {
+      let interim = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          finalText += transcript;
+          finalBufferRef.current += transcript + ' ';
         } else {
-          interimAccum += transcript;
+          interim += transcript;
         }
       }
-
-      // Feedback visual con los parciales
-      setInterimText(interimAccum);
-
-      // Procesar resultado final
-      if (finalText.trim()) {
-        const trimmed = finalText.trim();
-        if (isNoise(trimmed)) {
-          setInterimText(''); // no mostrar ruido
-          return;
-        }
-
-        // Debounce: no más de 1 envío cada 3s
-        const now = Date.now();
-        if (now - lastSendRef.current < DEBOUNCE_MS) return;
-        lastSendRef.current = now;
-
-        hasSentRef.current = true;
-        onResult(trimmed);
-        setInterimText('');
-      }
+      setInterimText(interim);
     };
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      if (event.error === 'not-allowed') {
-        setPermissionDenied(true);
+    rec.onerror = (event: SpeechRecognitionErrorEvent) => {
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         setSupported(false);
       }
+      // 'no-speech' / 'aborted' → se maneja en onend
+    };
+
+    const finishAndSend = () => {
       listeningRef.current = false;
       setListening(false);
       setInterimText('');
       onActiveChange?.(false);
+      const text = finalBufferRef.current.trim();
+      finalBufferRef.current = '';
+      stopRequestedRef.current = false;
+      if (text && !isNoise(text)) onResult(text);
     };
 
-    recognition.onend = () => {
-      listeningRef.current = false;
-      setListening(false);
-      setInterimText('');
-
-      // Auto-start: reiniciar si aplica
-      if (autoStart && !permissionDenied && !cooldown) {
-        setTimeout(() => {
-          if (!listeningRef.current) {
-            try {
-              recognition.start();
-            } catch {
-              // browser rechazó
-            }
-          }
-        }, 400);
-      } else {
-        onActiveChange?.(false);
+    rec.onend = () => {
+      // Si el usuario cerró (o quedó bloqueado por respuesta) → enviar la frase completa.
+      if (stopRequestedRef.current || disabledRef.current) {
+        finishAndSend();
+        return;
       }
-    };
-
-    recognitionRef.current = recognition;
-
-    return () => {
-      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+      // El navegador cortó solo (pausa larga) pero el usuario sigue en modo escucha →
+      // reanudar SIN enviar, conservando lo acumulado.
       try {
-        recognition.abort();
+        rec.start();
       } catch {
-        // ignore
+        finishAndSend();
       }
+    };
+
+    recognitionRef.current = rec;
+    return () => {
+      try { rec.abort(); } catch { /* ignore */ }
       recognitionRef.current = null;
     };
-  }, [onResult, autoStart, onActiveChange, permissionDenied, cooldown, resetInactivity]);
+  }, [onResult, onActiveChange]);
 
-  // ── Auto-start (se re-evalúa al salir de cooldown) ──
+  // ── Si Hermès empieza a responder mientras el micro está abierto → cerrar ──
   useEffect(() => {
-    if (autoStart && recognitionRef.current && !listeningRef.current && !cooldown && !permissionDenied) {
-      const delay = setTimeout(() => {
-        try {
-          recognitionRef.current?.start();
-        } catch {
-          // puede fallar si falta user gesture
-        }
-      }, 800);
-      return () => clearTimeout(delay);
+    if (disabled && listeningRef.current) {
+      stopRequestedRef.current = true;
+      try { recognitionRef.current?.stop(); } catch { /* ignore */ }
     }
-  }, [autoStart, cooldown, permissionDenied]);
+  }, [disabled]);
 
-  // ── Toggle manual ──
-  const toggleListening = useCallback(() => {
-    if (!recognitionRef.current) return;
-
+  // ── Tap para hablar / tap para enviar ──
+  const toggle = useCallback(() => {
+    if (!recognitionRef.current || disabled) return;
     if (listeningRef.current) {
-      recognitionRef.current.stop();
+      stopRequestedRef.current = true;     // tap → enviar
+      try { recognitionRef.current.stop(); } catch { /* ignore */ }
     } else {
-      setCooldown(false);
-      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
-      try {
-        recognitionRef.current.start();
-      } catch {
-        // ya corriendo o permisos denegados
-      }
+      finalBufferRef.current = '';
+      stopRequestedRef.current = false;
+      try { recognitionRef.current.start(); } catch { /* ya corriendo */ }
     }
-  }, []);
+  }, [disabled]);
 
   if (!supported) return null;
 
   return (
     <div className="flex items-center gap-2">
-      {/* Interim transcript flotante */}
       {interimText && listening && (
-        <span className="text-[10px] text-[var(--cyan)]/60 italic max-w-[120px] truncate transition-opacity">
+        <span className="text-[10px] text-[var(--cyan)]/70 italic max-w-[150px] truncate transition-opacity">
           {interimText}
         </span>
       )}
 
-      {cooldown && (
-        <span className="text-[9px] text-[var(--text-faint)] flex items-center gap-1">
-          <VolumeX size={10} />
-          PAUSA
-        </span>
-      )}
-
       <button
-        onClick={toggleListening}
-        title={cooldown ? 'En pausa temporal' : listening ? 'Detener' : 'Hablar'}
-        disabled={cooldown}
+        onClick={toggle}
+        disabled={disabled}
+        title={disabled ? 'Hermès respondiendo…' : listening ? 'Tocar para enviar' : 'Tocar para hablar'}
         className={classNames(
           'p-2 rounded-xl transition-all duration-200',
-          listening
+          disabled
+            ? 'opacity-40 cursor-not-allowed text-[var(--text-faint)]'
+            : listening
             ? 'bg-[var(--error)]/20 text-[var(--error)] shadow-[0_0_12px_rgba(239,68,68,0.3)] animate-pulse'
-            : cooldown
-            ? 'text-[var(--text-faint)] opacity-50 cursor-not-allowed'
             : 'text-[var(--text-muted)] hover:bg-[rgba(255,255,255,0.06)] hover:text-[var(--text)]'
         )}
       >
