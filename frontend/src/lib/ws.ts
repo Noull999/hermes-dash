@@ -3,9 +3,15 @@ import { useLogStore } from '@/store/useLogStore';
 type MessageHandler = (data: unknown) => void;
 type StatusHandler = (status: 'connected' | 'disconnected' | 'reconnecting' | 'timeout') => void;
 
+// En Vercel, NEXT_PUBLIC_WS_URL lo actualiza hermes-tunnel.sh con la URL del
+// tunnel Cloudflare (wss://*.trycloudflare.com/api/chat). En dev local se usa
+// el mismo origen o fallback a localhost.
 function getWsUrl(): string {
+  // Build-time env var (Next.js inyecta NEXT_PUBLIC_* en el bundle)
+  const envUrl = process.env.NEXT_PUBLIC_WS_URL;
+  if (envUrl) return envUrl;
+
   if (typeof window === 'undefined') return 'ws://localhost:8080/api/chat';
-  // Same-origin — Vercel rewrite proxy conecta wss:// al VPS
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${proto}//${window.location.host}/api/chat`;
 }
