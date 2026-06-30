@@ -1,21 +1,8 @@
 'use client';
 
 import { useEffect, useState, startTransition } from 'react';
+import { getWeather, WeatherData } from '@/lib/api';
 import { CloudSun, RefreshCw, Thermometer, Droplets, Wind, MapPin, Eye, Sun } from 'lucide-react';
-
-interface WeatherData {
-  current: {
-    temperature_2m: number;
-    relative_humidity_2m: number;
-    apparent_temperature: number;
-    weather_code: number;
-    wind_speed_10m: number;
-    precipitation: number;
-    pressure_msl: number;
-    visibility: number;
-    uv_index: number;
-  };
-}
 
 const WEATHER_LABELS: Record<number, string> = {
   0: 'Despejado', 1: 'Mayormente despejado', 2: 'Parcialmente nublado', 3: 'Nublado',
@@ -50,14 +37,14 @@ export default function WeatherWidget() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
-        'https://api.open-meteo.com/v1/forecast?latitude=-41.47&longitude=-72.94&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation,pressure_msl,visibility,uv_index&timezone=America/Santiago'
-      );
-      if (!res.ok) throw new Error('Weather API error');
-      const data = await res.json();
-      setWeather(data);
-    } catch (err) {
-      setError((err as Error).message);
+      const data = await getWeather();
+      if (data.error) {
+        setError(data.message || data.error);
+      } else {
+        setWeather(data);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al obtener clima');
     } finally {
       setLoading(false);
     }
@@ -95,7 +82,7 @@ export default function WeatherWidget() {
     );
   }
 
-  if (!weather) return null;
+  if (!weather?.current) return null;
 
   const { current } = weather;
   const emoji = weatherEmoji[current.weather_code] || '🌤️';

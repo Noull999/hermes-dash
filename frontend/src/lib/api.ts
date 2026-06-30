@@ -318,6 +318,28 @@ export async function subscribePush() {
   });
 }
 
+// ── Weather ───────────────────────────────────────────────────────────────
+export interface WeatherData {
+  current?: {
+    temperature_2m: number;
+    relative_humidity_2m: number;
+    apparent_temperature: number;
+    weather_code: number;
+    wind_speed_10m: number;
+    precipitation: number;
+    pressure_msl: number;
+    visibility: number;
+    uv_index: number;
+  };
+  error?: string;
+  _cached_at?: string;
+  _stale?: boolean;
+}
+
+export async function getWeather() {
+  return request<WeatherData>('/api/weather');
+}
+
 // ── Gamification ──────────────────────────────────────────────────────────
 export interface AchievementInfo {
   id: string;
