@@ -25,6 +25,7 @@ from routes.webhook import router as webhook_router
 from routes.memory import router as memory_router
 from routes.sessions import router as sessions_router
 from routes.upload import router as upload_router
+from routes.activity import router as activity_router
 from chat_ws import router as chat_ws_router
 
 app = FastAPI(
@@ -68,6 +69,7 @@ app.include_router(brain_router)
 app.include_router(reminders_router)
 app.include_router(memory_router)
 app.include_router(upload_router)
+app.include_router(activity_router)
 app.include_router(email_router)
 app.include_router(calendar_router)
 app.include_router(jobs_router)

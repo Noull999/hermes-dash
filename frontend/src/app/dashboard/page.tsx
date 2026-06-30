@@ -11,6 +11,7 @@ import NextEvent from '@/components/dashboard/NextEvent';
 import TokenBudget from '@/components/dashboard/TokenBudget';
 import ActiveJobs from '@/components/dashboard/ActiveJobs';
 import RecentRepos from '@/components/dashboard/RecentRepos';
+import ActivityFeed from '@/components/dashboard/ActivityFeed';
 import QuickChat from '@/components/dashboard/QuickChat';
 import { getTimeOfDay } from '@/lib/utils';
 import { Sparkles, Wifi, WifiOff } from 'lucide-react';
@@ -93,8 +94,12 @@ export default function DashboardPage() {
           <RecentRepos />
         </BentoCard>
 
-        {/* ── Row 3: QuickChat ── */}
-        <BentoCard colSpan={4} title="MENSAJE RÁPIDO" className="col-span-full md:col-span-4">
+        {/* ── Row 3: ActivityFeed + QuickChat ── */}
+        <BentoCard colSpan={2} title="ACTIVIDAD RECIENTE">
+          <ActivityFeed />
+        </BentoCard>
+
+        <BentoCard colSpan={2} title="MENSAJE RÁPIDO" className="col-span-full md:col-span-4">
           <QuickChat />
         </BentoCard>
       </div>
