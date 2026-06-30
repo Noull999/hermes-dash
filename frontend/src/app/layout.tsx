@@ -56,7 +56,7 @@ export default function RootLayout({
         <div className="hud-lines" aria-hidden />
         <div className="hud-scan" aria-hidden />
 
-        <div id="app-root" className="page-enter">{children}</div>
+        <div id="app-root">{children}</div>
 
         {/* Global widgets: Command Palette + Search Panel */}
         <ClientWidgets />
