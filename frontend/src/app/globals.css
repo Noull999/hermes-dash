@@ -345,8 +345,18 @@ html, body {
 }
 @media (min-width: 1024px) {
   .page-container {
-    max-width: 1120px;
+    max-width: 1200px;
     padding: 28px 32px 48px;
+  }
+}
+@media (min-width: 1400px) {
+  .page-container {
+    max-width: 1600px;
+  }
+}
+@media (min-width: 1800px) {
+  .page-container {
+    max-width: 92vw;
   }
 }
 .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
