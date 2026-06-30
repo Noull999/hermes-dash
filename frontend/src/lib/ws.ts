@@ -4,17 +4,8 @@ type MessageHandler = (data: unknown) => void;
 type StatusHandler = (status: 'connected' | 'disconnected' | 'reconnecting' | 'timeout') => void;
 
 function getWsUrl(): string {
-  if (typeof window === 'undefined') return 'ws://localhost:8080/api/chat';
-
-  // Try to connect WS on the same host first (works when backend serves frontend
-  // or there's a reverse proxy). Falls back to direct VPS IP.
-  const sameHost = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/chat`;
-
-  // Direct VPS fallback — only used if same-host fails
-  const direct = 'ws://95.217.7.149:8080/api/chat';
-
-  // Use the VPS's Hermes gateway port which also serves the frontend
-  return direct;
+  // VPS direct — el frontend corre en Vercel, el backend en el VPS
+  return 'ws://95.217.7.149:8080/api/chat';
 }
 
 const WS_BASE = getWsUrl();
