@@ -84,31 +84,31 @@ export default function DashboardPage() {
 
       {/* ── Bento Grid Dashboard ── */}
       <div className="bento-grid px-4 pb-24">
-        {/* ── Row 1: System + NextEvent + TokenBudget ── */}
+        {/* ── Row 1: Monitor + Tokens ── */}
+        <BentoCard colSpan={2} title="MONITOR DE SERVICIOS">
+          <ServiceMonitor />
+        </BentoCard>
+
+        <BentoCard colSpan={2} title="TOKENS">
+          <TokenBudget />
+        </BentoCard>
+
+        {/* ── Row 2: System + ActiveJobs ── */}
         <BentoCard colSpan={2} title="SISTEMA">
           <SystemStatus />
         </BentoCard>
 
-        <BentoCard colSpan={1} title="MONITOR DE SERVICIOS">
-          <ServiceMonitor />
-        </BentoCard>
-
-        <BentoCard colSpan={1} title="TOKENS">
-          <TokenBudget />
-        </BentoCard>
-
-        {/* ── Row 2: ActiveJobs + RecentRepos ── */}
         <BentoCard colSpan={2} title="TRABAJOS ACTIVOS">
           <ActiveJobs />
         </BentoCard>
 
-        <BentoCard colSpan={2} title="REPOSITORIOS">
-          <RecentRepos />
-        </BentoCard>
-
-        {/* ── Row 3: ActivityFeed + QuickChat ── */}
+        {/* ── Row 3: Activity + Repos ── */}
         <BentoCard colSpan={2} title="ACTIVIDAD RECIENTE">
           <ActivityFeed />
+        </BentoCard>
+
+        <BentoCard colSpan={2} title="REPOSITORIOS">
+          <RecentRepos />
         </BentoCard>
 
         <BentoCard colSpan={2} title="MENSAJE RÁPIDO" className="col-span-full md:col-span-4">
