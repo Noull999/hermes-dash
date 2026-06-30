@@ -62,7 +62,7 @@ export default function RecentRepos() {
           <button
             onClick={() => handlePull(repo.name)}
             disabled={pulling[repo.name] === 'success' || pulling[repo.name] === 'error'}
-            className="p-1 hover:bg-[rgba(79,227,255,0.08)] rounded transition-colors disabled:opacity-50"
+            className="p-1 hover:bg-[rgba(255,45,85,0.08)] rounded transition-colors disabled:opacity-50"
           >
             {pulling[repo.name] === 'success' ? (
               <CheckCircle2 size={11} className="text-[var(--success)]" />

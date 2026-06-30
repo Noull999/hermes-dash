@@ -92,7 +92,7 @@ function ServiceCard({
             <button
               onClick={() => onAction(actionId)}
               disabled={isRunning}
-              className="w-7 h-7 flex items-center justify-center rounded border border-[var(--amber)] text-[var(--amber)] hover:bg-[rgba(255,183,77,0.1)] transition-colors disabled:opacity-40"
+              className="btn-action w-7 h-7 flex items-center justify-center rounded border border-[var(--amber)] text-[var(--amber)] hover:bg-[rgba(255,159,61,0.1)] transition-all disabled:opacity-40"
               title={isRunning ? 'Ejecutando...' : 'Fix'}
             >
               {isRunning ? <RefreshCw size={11} className="animate-spin" /> : <Play size={11} />}
@@ -100,7 +100,7 @@ function ServiceCard({
           )}
           <button
             onClick={onRefresh}
-            className="w-7 h-7 flex items-center justify-center rounded border border-[var(--hairline)] hover:bg-[rgba(79,227,255,0.06)] transition-colors"
+            className="btn-action w-7 h-7 flex items-center justify-center rounded border border-[var(--hairline)] hover:bg-[rgba(255,45,85,0.06)] transition-all"
             title="Re-check"
           >
             <RefreshCw size={11} className="text-[var(--text-faint)]" />
@@ -181,7 +181,7 @@ export default function ServiceMonitor() {
         className={`flex items-center gap-2 px-3 py-2 rounded border text-xs font-mono ${
           allOk
             ? 'border-[rgba(93,255,176,0.2)] text-[var(--success)] bg-[rgba(93,255,176,0.04)]'
-            : 'border-[rgba(255,93,108,0.2)] text-[var(--error)] bg-[rgba(255,93,108,0.04)]'
+            : 'border-[rgba(255,45,85,0.2)] text-[var(--error)] bg-[rgba(255,45,85,0.04)]'
         }`}
       >
         {allOk ? <Wifi size={14} /> : <AlertTriangle size={14} />}
@@ -191,7 +191,7 @@ export default function ServiceMonitor() {
         <span className="ml-auto text-[10px] text-[var(--text-faint)]">{checkedTime}</span>
         <button
           onClick={fetchData}
-          className="shrink-0 w-7 h-7 flex items-center justify-center rounded border border-[var(--hairline)] hover:bg-[rgba(79,227,255,0.06)] transition-colors"
+          className="btn-action shrink-0 w-7 h-7 flex items-center justify-center rounded border border-[var(--hairline)] hover:bg-[rgba(255,45,85,0.06)] transition-all"
           title="Re-check ahora"
         >
           <RefreshCw size={11} className="text-[var(--text-faint)]" />

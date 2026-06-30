@@ -64,7 +64,7 @@ export default function InputBox({ attachment, onRemoveAttachment }: InputBoxPro
     <div className="flex flex-col">
       {/* ── Attachment preview ── */}
       {attachment && (
-        <div className="flex items-center gap-2 px-4 py-2 mx-3 mt-2 rounded-xl bg-[rgba(0,212,255,0.06)] border border-[rgba(0,212,255,0.12)]">
+        <div className="flex items-center gap-2 px-4 py-2 mx-3 mt-2 rounded-xl bg-[rgba(255,45,85,0.06)] border border-[rgba(255,45,85,0.12)]">
           {attachment.type === 'image' ? (
             <ImageIcon size={14} className="text-[var(--cyan)] shrink-0" />
           ) : (
@@ -97,7 +97,7 @@ export default function InputBox({ attachment, onRemoveAttachment }: InputBoxPro
                 ? 'Mensaje a Hermes...'
                 : 'Desconectado...'
             }
-            className="w-full bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-2.5 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--accent)]/50 focus:bg-[rgba(0,212,255,0.04)] transition-all"
+            className="w-full bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-2.5 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--accent)]/50 focus:bg-[rgba(255,45,85,0.04)] transition-all"
             disabled={!isConnected}
           />
           <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-muted)] bg-[rgba(255,255,255,0.04)] px-1.5 py-0.5 rounded hidden sm:inline">

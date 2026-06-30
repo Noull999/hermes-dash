@@ -92,7 +92,7 @@ export default function DebugPanel() {
             onClick={() => setFilter(f)}
             className={`px-2.5 py-1 rounded-lg text-[10px] uppercase tracking-wider font-mono whitespace-nowrap transition-all ${
               filter === f
-                ? 'bg-[var(--cyan)]/20 text-[var(--cyan)] border border-[rgba(0,212,255,0.2)]'
+                ? 'bg-[var(--cyan)]/20 text-[var(--cyan)] border border-[rgba(255,45,85,0.2)]'
                 : 'text-[var(--text-muted)] hover:text-[var(--text)] border border-transparent'
             }`}
           >

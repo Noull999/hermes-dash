@@ -13,9 +13,9 @@ function particleNoise(t: number, seed: number): number {
 function getHourColors(): { r: number; g: number; b: number } {
   const h = new Date().getHours();
   if (h >= 6 && h < 12) return { r: 1.0, g: 0.75, b: 0.3 };    // Morning gold
-  if (h >= 12 && h < 18) return { r: 0, g: 0.87, b: 1.0 };      // Afternoon cyan
-  if (h >= 18 && h < 22) return { r: 0.6, g: 0.3, b: 1.0 };     // Evening purple
-  return { r: 0.1, g: 0.15, b: 0.4 };                             // Night dark blue
+  if (h >= 12 && h < 18) return { r: 0.95, g: 0.18, b: 0.3 };  // Afternoon red
+  if (h >= 18 && h < 22) return { r: 0.7, g: 0.12, b: 0.35 };  // Evening crimson
+  return { r: 0.25, g: 0.04, b: 0.08 };                           // Night dark red
 }
 
 function easeInOut(t: number): number {
@@ -85,10 +85,10 @@ function Orb3DCanvas() {
     }
 
     const stateColors = {
-      idle: { r: 0, g: 0.53, b: 1 },
-      processing: { r: 0, g: 0.83, b: 1 },
+      idle: { r: 0.55, g: 0.0, b: 0.12 },
+      processing: { r: 1.0, g: 0.18, b: 0.33 },
       success: { r: 0.13, g: 0.77, b: 0.34 },
-      error: { r: 0.94, g: 0.27, b: 0.27 },
+      error: { r: 1.0, g: 0.6, b: 0.0 },
     };
 
     const stateAnim = { progress: 0, currentState: orbState, targetState: orbState };
@@ -273,17 +273,17 @@ function OrbSVGFallback() {
 
   const getColors = () => {
     const stateColors: Record<string, { main: string; glow: string }> = {
-      processing: { main: '#00d4ff', glow: '#0088cc' },
+      processing: { main: '#ff2d55', glow: '#cc1a3d' },
       success: { main: '#22c55e', glow: '#16a34a' },
-      error: { main: '#ef4444', glow: '#dc2626' },
-      idle: { main: '#0066cc', glow: '#004080' },
+      error: { main: '#ff9f3d', glow: '#e08020' },
+      idle: { main: '#8c1c30', glow: '#661222' },
     };
 
     // Blend with hour color
     if (orbState === 'idle') {
-      const r = Math.round(0 * 0.7 + hourColor.r * 0.3 * 255);
-      const g = Math.round(0.53 * 0.7 + hourColor.g * 0.3 * 255);
-      const b = Math.round(1 * 0.7 + hourColor.b * 0.3 * 255);
+      const r = Math.round(0.55 * 0.7 + hourColor.r * 0.3 * 255);
+      const g = Math.round(0.0 * 0.7 + hourColor.g * 0.3 * 255);
+      const b = Math.round(0.12 * 0.7 + hourColor.b * 0.3 * 255);
       return { main: `rgb(${r},${g},${b})`, glow: `rgb(${Math.round(r*0.7)},${Math.round(g*0.7)},${Math.round(b*0.7)})` };
     }
 

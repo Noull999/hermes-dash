@@ -31,7 +31,7 @@ export default function BentoCard({
   return (
     <div
       style={style}
-      className={`glass rounded-2xl p-4 border border-[var(--hairline)] transition-all duration-200 hover:border-[rgba(0,212,255,0.15)] ${className}`}
+      className={`glass rounded-2xl p-4 border border-[var(--hairline)] transition-all duration-200 hover:border-[rgba(255,45,85,0.2)] hover:shadow-[0_0_18px_rgba(255,45,85,0.08)] stagger-card ${className}`}
     >
       {error && (
         <div className="flex flex-col items-center justify-center h-full min-h-[60px] gap-2">

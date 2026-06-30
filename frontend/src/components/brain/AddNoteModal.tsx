@@ -64,7 +64,7 @@ export default function AddNoteModal({ open, onClose, onCreated }: AddNoteModalP
               onClick={() => setType(t.id)}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                 type === t.id
-                  ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[rgba(0,212,255,0.2)]'
+                  ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[rgba(255,45,85,0.2)]'
                   : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[rgba(255,255,255,0.04)]'
               }`}
             >

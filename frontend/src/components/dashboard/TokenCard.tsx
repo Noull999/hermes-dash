@@ -60,19 +60,19 @@ export default function TokenCard() {
           <Coins size={14} className="text-[var(--cyan)]" />
           <h3 className="hud-label text-[10px] text-[var(--text)]">TOKEN&nbsp;USAGE</h3>
         </div>
-        <button onClick={fetchTokens} className="p-1 hover:bg-[rgba(79,227,255,0.08)] transition-colors">
+        <button onClick={fetchTokens} className="p-1 hover:bg-[rgba(255,45,85,0.08)] transition-colors">
           <RefreshCw size={12} className="text-[var(--text-muted)]" />
         </button>
       </div>
 
       {/* session limit bar */}
-      <div className="relative h-7 border border-[var(--hairline)] overflow-hidden flex mb-1 bg-[rgba(79,227,255,0.03)]">
+      <div className="relative h-7 border border-[var(--hairline)] overflow-hidden flex mb-1 bg-[rgba(255,45,85,0.03)]">
         <div
           className="h-full transition-all duration-700"
           style={{
             width: `${usedPct}%`,
             background: 'linear-gradient(90deg, var(--cyan-deep), var(--cyan))',
-            boxShadow: '0 0 14px rgba(79,227,255,0.5)',
+            boxShadow: '0 0 14px rgba(255,45,85,0.5)',
           }}
         />
         <span className="absolute right-2 top-1/2 -translate-y-1/2 hud-readout text-[10px] text-[var(--cyan-bright)]">
@@ -91,7 +91,7 @@ export default function TokenCard() {
           { Icon: Layers, label: 'CACHÉ', value: cachedTokens, glow: false },
           { Icon: Coins, label: 'BRUTO', value: grossTotalTokens, glow: false },
         ].map(({ Icon, label, value, glow }) => (
-          <div key={label} className="border border-[var(--hairline)] px-2 py-2 bg-[rgba(79,227,255,0.02)]">
+          <div key={label} className="border border-[var(--hairline)] px-2 py-2 bg-[rgba(255,45,85,0.02)]">
             <div className="flex items-center gap-1 mb-1">
               <Icon size={9} className="text-[var(--text-faint)]" />
               <span className="hud-label text-[8px]">{label}</span>

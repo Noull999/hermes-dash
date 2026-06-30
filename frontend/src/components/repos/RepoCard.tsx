@@ -178,7 +178,7 @@ export default function RepoCard({ repo, onClone }: RepoCardProps) {
               <button
                 onClick={handlePull}
                 disabled={pulling}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-[var(--hairline-strong)] bg-[rgba(79,227,255,0.08)] text-[var(--cyan)] hud-label text-[9px] hover:bg-[rgba(79,227,255,0.14)] transition-all disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-[var(--hairline-strong)] bg-[rgba(255,45,85,0.08)] text-[var(--cyan)] hud-label text-[9px] hover:bg-[rgba(255,45,85,0.14)] transition-all disabled:opacity-50"
               >
                 {pulling ? <Loader2 size={11} className="animate-spin" /> : <ArrowDownToLine size={11} />}
                 {pulling ? 'PULLING...' : 'PULL VPS'}
@@ -244,7 +244,7 @@ export default function RepoCard({ repo, onClone }: RepoCardProps) {
               <button
                 onClick={handleClone}
                 disabled={cloning}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-[rgba(79,227,255,0.3)] bg-[rgba(79,227,255,0.08)] text-[var(--cyan)] hud-label text-[9px] hover:bg-[rgba(79,227,255,0.14)] transition-all disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[2px] border border-[rgba(255,45,85,0.3)] bg-[rgba(255,45,85,0.08)] text-[var(--cyan)] hud-label text-[9px] hover:bg-[rgba(255,45,85,0.14)] transition-all disabled:opacity-50"
               >
                 {cloning ? <Loader2 size={11} className="animate-spin" /> : <GitBranch size={11} />}
                 {cloning ? 'CLONANDO...' : 'CLONAR EN VPS'}

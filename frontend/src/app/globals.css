@@ -1,49 +1,48 @@
 @import "tailwindcss";
 
 /*
-  ARC REACTOR HUD — design system
-  Cinematic JARVIS heads-up display. Everything reads like a holographic
-  panel projected on glass: hairline cyan frames, corner brackets, mono
+  ARC REACTOR HUD — design system (RED VARIANT)
+  Cinematic WAR MACHINE heads-up display. Everything reads like a holographic
+  panel projected on glass: hairline red frames, corner brackets, mono
   data readouts, a fine grid, and a slow scanline sweep over the void.
   Fonts are injected via next/font (var --font-display / --font-mono).
 */
 
 :root {
   /* Void + surfaces */
-  --void: #04060a;
-  --bg: #060a10;
-  --panel: rgba(10, 18, 26, 0.72);
-  --panel-solid: #0a121a;
-  --card: var(--panel); /* legacy alias */
+  --void: #0a0406;
+  --bg: #10060a;
+  --panel: rgba(26, 10, 14, 0.72);
+  --panel-solid: #120a0c;
+  --card: var(--panel);
 
-  /* Hairlines / structure */
-  --hairline: rgba(79, 227, 255, 0.14);
-  --hairline-strong: rgba(79, 227, 255, 0.34);
-  --grid: rgba(79, 227, 255, 0.045);
-  --border: var(--hairline); /* legacy alias */
+  /* Hairlines / structure — red-tinted */
+  --hairline: rgba(255, 45, 85, 0.14);
+  --hairline-strong: rgba(255, 45, 85, 0.34);
+  --grid: rgba(255, 45, 85, 0.045);
+  --border: var(--hairline);
 
-  /* Arc-reactor cyan (dominant) */
-  --accent: #4fe3ff;
-  --accent2: #19a7cc;
-  --cyan: #4fe3ff;
-  --cyan-bright: #b7f4ff;
-  --cyan-deep: #0a7d9e;
+  /* Arc-reactor RED (dominant) */
+  --accent: #ff2d55;
+  --cyan: #ff2d55;       /* variable name kept for compatibility */
+  --cyan-bright: #ff6b8a;
+  --cyan-deep: #991c33;
 
-  /* Stark amber (single accent) */
-  --amber: #ffb13d;
-  --purple: #ffb13d; /* legacy alias remapped off the SaaS purple */
+  /* Warm accent for contrast */
+  --amber: #ff9f3d;
+  --purple: #ff9f3d;
 
-  /* Text */
-  --text: #dceef7;
-  --text-muted: #8aa6b5;
-  --text-faint: #5e7d8c;
+  /* Text — warm off-white, reads well on dark red backgrounds */
+  --text: #f7e0e4;
+  --text-muted: #b58a94;
+  --text-faint: #8c5e6a;
 
   /* Signals */
   --success: #5dffb0;
-  --warning: #ffb13d;
-  --error: #ff5d6c;
+  --warning: #ff9f3d;
+  --error: #ff3b30;
 
-  --glow: 0 0 18px rgba(79, 227, 255, 0.35);
+  --glow: 0 0 18px rgba(255, 45, 85, 0.35);
 }
 
 * { box-sizing: border-box; }
@@ -61,22 +60,22 @@ html, body {
 }
 
 ::selection {
-  background: rgba(79, 227, 255, 0.28);
-  color: #eafcff;
+  background: rgba(255, 45, 85, 0.28);
+  color: #ffe6ea;
 }
 
-/* ── Global HUD backdrop (fixed layers rendered in layout) ───────────── */
+/* ── Global HUD backdrop ───────────────────────────────────────────── */
 .hud-bg {
   position: fixed;
   inset: 0;
   z-index: -2;
   pointer-events: none;
   background:
-    radial-gradient(120% 80% at 50% -10%, rgba(79, 227, 255, 0.10), transparent 55%),
-    radial-gradient(90% 60% at 50% 110%, rgba(25, 167, 204, 0.07), transparent 60%),
+    radial-gradient(120% 80% at 50% -10%, rgba(255, 45, 85, 0.10), transparent 55%),
+    radial-gradient(90% 60% at 50% 110%, rgba(153, 28, 51, 0.07), transparent 60%),
     var(--void);
 }
-/* fine technical grid */
+/* fine technical grid with radial mask */
 .hud-grid {
   position: fixed;
   inset: 0;
@@ -89,7 +88,7 @@ html, body {
   mask-image: radial-gradient(120% 90% at 50% 30%, #000 35%, transparent 90%);
   -webkit-mask-image: radial-gradient(120% 90% at 50% 30%, #000 35%, transparent 90%);
 }
-/* slow scanline sweep — sparse, cinematic */
+/* slow scanline sweep — more subtle, slower */
 .hud-scan {
   position: fixed;
   inset: 0;
@@ -98,12 +97,12 @@ html, body {
   background: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(79, 227, 255, 0.05) 50%,
+    rgba(255, 45, 85, 0.035) 50%,
     transparent 100%
   );
   height: 38vh;
-  animation: scanSweep 7s linear infinite;
-  opacity: 0.6;
+  animation: scanSweep 12s linear infinite;
+  opacity: 0.4;
 }
 @keyframes scanSweep {
   0% { transform: translateY(-40vh); }
@@ -119,7 +118,7 @@ html, body {
     180deg,
     rgba(0, 0, 0, 0) 0px,
     rgba(0, 0, 0, 0) 2px,
-    rgba(79, 227, 255, 0.012) 3px,
+    rgba(255, 45, 85, 0.012) 3px,
     rgba(0, 0, 0, 0) 4px
   );
   opacity: 0.7;
@@ -130,7 +129,7 @@ html, body {
 .glass {
   position: relative;
   background:
-    linear-gradient(180deg, rgba(79, 227, 255, 0.05), rgba(79, 227, 255, 0) 42%),
+    linear-gradient(180deg, rgba(255, 45, 85, 0.05), rgba(255, 45, 85, 0) 42%),
     var(--panel);
   border: 1px solid var(--hairline);
   border-radius: 4px;
@@ -138,11 +137,11 @@ html, body {
   -webkit-backdrop-filter: blur(14px) saturate(125%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    inset 0 0 24px rgba(79, 227, 255, 0.03),
+    inset 0 0 24px rgba(255, 45, 85, 0.03),
     0 10px 34px rgba(0, 0, 0, 0.45);
   transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
 }
-/* opposing corner brackets = the memorable anchor */
+/* opposing corner brackets in red */
 .hud-panel::before,
 .glass::before,
 .hud-panel::after,
@@ -171,11 +170,12 @@ html, body {
 .hud-panel:hover,
 .glass:hover {
   border-color: var(--hairline-strong);
+  transform: translateY(-1px);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 0 30px rgba(79, 227, 255, 0.06),
+    inset 0 0 30px rgba(255, 45, 85, 0.06),
     0 10px 38px rgba(0, 0, 0, 0.5),
-    0 0 22px rgba(79, 227, 255, 0.10);
+    0 0 22px rgba(255, 45, 85, 0.15);
 }
 
 /* panel without brackets (e.g. nav, header) */
@@ -200,11 +200,11 @@ html, body {
 }
 .glow-text {
   color: var(--cyan-bright);
-  text-shadow: 0 0 12px rgba(79, 227, 255, 0.55);
+  text-shadow: 0 0 12px rgba(255, 45, 85, 0.55);
 }
 .glow-amber {
   color: var(--amber);
-  text-shadow: 0 0 12px rgba(255, 177, 61, 0.45);
+  text-shadow: 0 0 12px rgba(255, 159, 61, 0.45);
 }
 /* section divider with a leading tick */
 .hud-divider {
@@ -224,10 +224,10 @@ html, body {
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(79, 227, 255, 0.18);
+  background: rgba(255, 45, 85, 0.18);
   border-radius: 0;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(79, 227, 255, 0.32); }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 45, 85, 0.32); }
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { scrollbar-width: none; }
 
@@ -237,7 +237,7 @@ html, body {
   100% { background-position: 200% 0; }
 }
 .skeleton {
-  background: linear-gradient(90deg, var(--panel-solid) 25%, rgba(79,227,255,0.06) 50%, var(--panel-solid) 75%);
+  background: linear-gradient(90deg, var(--panel-solid) 25%, rgba(255, 45, 85, 0.06) 50%, var(--panel-solid) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
   border-radius: 2px;
@@ -245,16 +245,16 @@ html, body {
 
 /* ── Pulse glow (idle reactor) ──────────────────────────────────────── */
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 6px rgba(79, 227, 255, 0.25); }
-  50% { box-shadow: 0 0 22px rgba(79, 227, 255, 0.5); }
+  0%, 100% { box-shadow: 0 0 6px rgba(255, 45, 85, 0.25); }
+  50% { box-shadow: 0 0 22px rgba(255, 45, 85, 0.5); }
 }
 .pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
 
-/* ── Orb state filters (used by SVG/canvas fallback wrappers) ───────── */
+/* ── Orb state filters ──────────────────────────────────────────────── */
 .orb-idle { filter: none; }
 .orb-processing { filter: brightness(1.15) saturate(1.2); }
-.orb-success { filter: hue-rotate(70deg) brightness(1.25); }
-.orb-error { filter: hue-rotate(300deg) brightness(0.9); }
+.orb-success { filter: hue-rotate(100deg) brightness(1.15); }
+.orb-error { filter: hue-rotate(60deg) brightness(0.9); }
 
 /* targeting reticle ring (around the orb) */
 @keyframes reticleSpin { to { transform: rotate(360deg); } }
@@ -274,6 +274,51 @@ html, body {
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* ── Staggered card entrance (for bento grid) ───────────────────────── */
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.stagger-card {
+  animation: cardIn 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.stagger-card:nth-child(1) { animation-delay: 0.02s; }
+.stagger-card:nth-child(2) { animation-delay: 0.06s; }
+.stagger-card:nth-child(3) { animation-delay: 0.10s; }
+.stagger-card:nth-child(4) { animation-delay: 0.14s; }
+.stagger-card:nth-child(5) { animation-delay: 0.18s; }
+.stagger-card:nth-child(6) { animation-delay: 0.22s; }
+.stagger-card:nth-child(7) { animation-delay: 0.26s; }
+
+/* ── Button micro-interactions ──────────────────────────────────────── */
+@keyframes btnClick {
+  0% { transform: scale(1); }
+  40% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+.btn-action:active {
+  animation: btnClick 0.2s ease-out;
+}
+
+/* ── Success flash pulse ────────────────────────────────────────────── */
+@keyframes successFlash {
+  0% { box-shadow: 0 0 0 rgba(93, 255, 176, 0); }
+  50% { box-shadow: 0 0 20px rgba(93, 255, 176, 0.4); }
+  100% { box-shadow: 0 0 0 rgba(93, 255, 176, 0); }
+}
+.flash-success {
+  animation: successFlash 1.2s ease-out;
+}
+
+/* ── Page transition slide ──────────────────────────────────────────── */
+@keyframes pageSlideIn {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.page-enter {
+  animation: pageSlideIn 0.3s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
 /* ── Chat typing indicator ──────────────────────────────────────────── */
 .typing-dot {
   display: inline-block;
@@ -281,7 +326,7 @@ html, body {
   border-radius: 50%;
   background: var(--cyan);
   margin: 0 2px;
-  box-shadow: 0 0 8px rgba(79, 227, 255, 0.6);
+  box-shadow: 0 0 8px rgba(255, 45, 85, 0.6);
   animation: typingBounce 1.4s ease-in-out infinite;
 }
 .typing-dot:nth-child(2) { animation-delay: 0.2s; }
@@ -298,8 +343,6 @@ html, body {
   padding: 16px 16px 96px;
   min-height: 100vh;
 }
-/* On wide screens, use the real estate: more width + breathing room.
-   Pages that want a tighter column still wrap their content in max-w-* . */
 @media (min-width: 1024px) {
   .page-container {
     max-width: 1120px;
@@ -308,7 +351,7 @@ html, body {
 }
 .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
 
-/* ── Sessions panel slide-in ──────────────────────────────────────────── */
+/* ── Sessions panel slide-in ────────────────────────────────────────── */
 @keyframes slideIn {
   from { transform: translateX(100%); }
   to   { transform: translateX(0); }
@@ -348,7 +391,7 @@ html, body {
   }
 }
 
-/* Respect users who prefer less motion — kill the ambient sweeps/spins. */
+/* Respect users who prefer less motion */
 @media (prefers-reduced-motion: reduce) {
   .hud-scan,
   .reticle,

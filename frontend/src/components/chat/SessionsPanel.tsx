@@ -72,7 +72,7 @@ export default function SessionsPanel({ currentSessionId, onSelectSession }: Pro
               <div className="flex gap-2">
                 <button
                   onClick={handleNew}
-                  className="text-[10px] px-2 py-1 rounded border border-[var(--hairline-strong)] text-[var(--cyan)] hover:bg-[rgba(0,212,255,0.06)] transition-all"
+                  className="text-[10px] px-2 py-1 rounded border border-[var(--hairline-strong)] text-[var(--cyan)] hover:bg-[rgba(255,45,85,0.06)] transition-all"
                 >
                   + NUEVA
                 </button>
@@ -97,7 +97,7 @@ export default function SessionsPanel({ currentSessionId, onSelectSession }: Pro
                     onClick={() => handleSelect(s.id)}
                     className={`group cursor-pointer rounded-xl px-3 py-2.5 border transition-all ${
                       s.id === currentSessionId
-                        ? 'border-[var(--cyan)]/30 bg-[rgba(0,212,255,0.04)]'
+                        ? 'border-[var(--cyan)]/30 bg-[rgba(255,45,85,0.04)]'
                         : 'border-transparent hover:bg-[rgba(255,255,255,0.02)]'
                     }`}
                   >

@@ -157,7 +157,7 @@ export default function SearchPanel() {
                 <div
                   key={`${r.session_id}-${i}`}
                   onClick={() => handleSelectResult(r.session_id)}
-                  className="px-4 py-3 cursor-pointer hover:bg-[rgba(0,212,255,0.05)] transition-colors border-b border-[var(--hairline)] last:border-0"
+                  className="px-4 py-3 cursor-pointer hover:bg-[rgba(255,45,85,0.05)] transition-colors border-b border-[var(--hairline)] last:border-0"
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[11px] font-medium text-[var(--text)] truncate">

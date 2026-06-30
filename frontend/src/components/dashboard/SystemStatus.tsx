@@ -19,7 +19,7 @@ function Bar({ label, value, Icon }: { label: string; value: number; Icon: React
         </div>
         <span className="hud-readout text-[10px]" style={{ color }}>{value.toFixed(0)}%</span>
       </div>
-      <div className="h-2 bg-[rgba(79,227,255,0.06)] rounded-full overflow-hidden border border-[var(--hairline)]">
+      <div className="h-2 bg-[rgba(255,45,85,0.06)] rounded-full overflow-hidden border border-[var(--hairline)]">
         <div
           className="h-full rounded-full transition-all duration-1000 ease-out"
           style={{

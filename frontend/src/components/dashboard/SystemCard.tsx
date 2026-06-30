@@ -71,7 +71,7 @@ export default function SystemCard() {
             <span className="w-1.5 h-1.5 rounded-full bg-current" />
             {online ? 'ONLINE' : 'OFFLINE'}
           </span>
-          <button onClick={fetchSystem} className="p-1 hover:bg-[rgba(79,227,255,0.08)] transition-colors">
+          <button onClick={fetchSystem} className="p-1 hover:bg-[rgba(255,45,85,0.08)] transition-colors">
             <RefreshCw size={12} className="text-[var(--text-muted)]" />
           </button>
         </div>
@@ -82,7 +82,7 @@ export default function SystemCard() {
           const over = val > warn;
           const color = over ? 'var(--error)' : 'var(--cyan)';
           return (
-            <div key={label} className="border border-[var(--hairline)] px-2.5 py-2 bg-[rgba(79,227,255,0.02)]">
+            <div key={label} className="border border-[var(--hairline)] px-2.5 py-2 bg-[rgba(255,45,85,0.02)]">
               <div className="flex items-center gap-1.5 mb-1.5">
                 <Icon size={11} className="text-[var(--text-faint)]" />
                 <span className="hud-label text-[8px]">{label}</span>
@@ -90,7 +90,7 @@ export default function SystemCard() {
               <span className="hud-readout text-base font-bold text-[var(--text)]">
                 {val.toFixed(0)}<span className="text-[var(--text-muted)] text-xs">{unit}</span>
               </span>
-              <div className="mt-1.5 h-[3px] bg-[rgba(79,227,255,0.08)] overflow-hidden">
+              <div className="mt-1.5 h-[3px] bg-[rgba(255,45,85,0.08)] overflow-hidden">
                 <div className="h-full transition-all duration-700"
                   style={{ width: `${Math.min(val, 100)}%`, background: color, boxShadow: `0 0 6px ${color}` }} />
               </div>
@@ -99,7 +99,7 @@ export default function SystemCard() {
         })}
 
         {/* uptime */}
-        <div className="border border-[var(--hairline)] px-2.5 py-2 bg-[rgba(79,227,255,0.02)]">
+        <div className="border border-[var(--hairline)] px-2.5 py-2 bg-[rgba(255,45,85,0.02)]">
           <div className="flex items-center gap-1.5 mb-1.5">
             <Clock size={11} className="text-[var(--text-faint)]" />
             <span className="hud-label text-[8px]">UPTIME</span>

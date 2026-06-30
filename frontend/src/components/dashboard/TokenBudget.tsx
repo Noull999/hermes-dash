@@ -12,7 +12,7 @@ function CircularProgress({ pct }: { pct: number }) {
 
   return (
     <svg width={62} height={62} viewBox="0 0 72 72" className="shrink-0">
-      <circle cx={36} cy={36} r={r} fill="none" stroke="rgba(79,227,255,0.06)" strokeWidth={5} />
+      <circle cx={36} cy={36} r={r} fill="none" stroke="rgba(255,45,85,0.06)" strokeWidth={5} />
       <circle
         cx={36} cy={36} r={r}
         fill="none"

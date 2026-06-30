@@ -155,7 +155,7 @@ export default function PushManager() {
         <button
           onClick={subscribed ? unsubscribe : subscribe}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all bg-[var(--accent)]/20 text-[var(--accent)] border border-[rgba(0,212,255,0.2)] hover:bg-[var(--accent)]/30 disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all bg-[var(--accent)]/20 text-[var(--accent)] border border-[rgba(255,45,85,0.2)] hover:bg-[var(--accent)]/30 disabled:opacity-50"
         >
           {loading ? <Loader2 size={14} className="animate-spin" /> : subscribed ? <BellOff size={14} /> : <Bell size={14} />}
           {loading ? 'Procesando...' : subscribed ? 'Desactivar Push' : 'Activar Push'}

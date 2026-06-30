@@ -39,7 +39,7 @@ export default function WeatherWidget() {
     try {
       const data = await getWeather();
       if (data.error) {
-        setError(data.message || data.error);
+        setError(data.error);
       } else {
         setWeather(data);
       }
@@ -96,7 +96,7 @@ export default function WeatherWidget() {
           <MapPin size={10} className="text-[var(--cyan)]" />
           <span className="hud-label text-[8px]">PTO. MONTT</span>
         </div>
-        <button onClick={fetchWeather} className="p-0.5 hover:bg-[rgba(79,227,255,0.08)] transition-colors rounded">
+        <button onClick={fetchWeather} className="p-0.5 hover:bg-[rgba(255,45,85,0.08)] transition-colors rounded">
           <RefreshCw size={9} className="text-[var(--text-muted)]" />
         </button>
       </div>

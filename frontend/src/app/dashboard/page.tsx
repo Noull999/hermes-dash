@@ -47,7 +47,7 @@ export default function DashboardPage() {
           <div className="reticle w-[200px] h-[200px] rounded-full border border-[var(--hairline)]" />
         </div>
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="reticle-rev w-[158px] h-[158px] rounded-full border border-dashed border-[rgba(79,227,255,0.18)]" />
+          <div className="reticle-rev w-[158px] h-[158px] rounded-full border border-dashed border-[rgba(255,45,85,0.18)]" />
         </div>
         <div className="absolute top-3 left-3 hud-label text-[8px] text-[var(--text-faint)]">
           SYS.HERMES//v2

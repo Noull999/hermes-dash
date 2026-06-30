@@ -11,7 +11,7 @@ interface MiniOrbProps {
 const statusColors: Record<string, { bg: string; shadow: string }> = {
   synced: { bg: 'bg-[var(--success)]', shadow: 'rgba(93,255,176,0.5)' },
   behind: { bg: 'bg-[var(--warning)]', shadow: 'rgba(255,177,61,0.5)' },
-  ahead: { bg: 'bg-[var(--accent)]', shadow: 'rgba(79,227,255,0.5)' },
+  ahead: { bg: 'bg-[var(--accent)]', shadow: 'rgba(255,45,85,0.5)' },
   error: { bg: 'bg-[var(--error)]', shadow: 'rgba(255,93,108,0.5)' },
   unknown: { bg: 'bg-[var(--text-muted)]', shadow: 'rgba(111,138,153,0.5)' },
 };

@@ -32,12 +32,12 @@ export default function QuickChat() {
           onKeyDown={handleKeyDown}
           placeholder="Envía un mensaje a Hermes…"
           rows={1}
-          className="flex-1 bg-[rgba(0,0,0,0.3)] border border-[var(--hairline)] rounded-xl px-3 py-2 text-xs text-[var(--text)] outline-none resize-none placeholder:text-[var(--text-faint)] focus:border-[rgba(0,212,255,0.3)] transition-colors"
+          className="flex-1 bg-[rgba(0,0,0,0.3)] border border-[var(--hairline)] rounded-xl px-3 py-2 text-xs text-[var(--text)] outline-none resize-none placeholder:text-[var(--text-faint)] focus:border-[rgba(255,45,85,0.3)] transition-colors"
         />
         <button
           onClick={handleSend}
           disabled={!text.trim()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[rgba(0,212,255,0.1)] border border-[rgba(0,212,255,0.2)] text-[var(--cyan)] text-xs hover:bg-[rgba(0,212,255,0.18)] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[rgba(255,45,85,0.1)] border border-[rgba(255,45,85,0.2)] text-[var(--cyan)] text-xs hover:bg-[rgba(255,45,85,0.18)] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Send size={14} />
         </button>

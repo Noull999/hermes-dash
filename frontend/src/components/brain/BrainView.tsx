@@ -101,7 +101,7 @@ export default function BrainView() {
           <p className="text-sm text-[var(--error)] mb-3">{error}</p>
           <button
             onClick={fetchNotes}
-            className="px-4 py-2 rounded-xl bg-[rgba(0,212,255,0.1)] text-[var(--accent)] text-sm font-medium hover:bg-[rgba(0,212,255,0.15)]"
+            className="px-4 py-2 rounded-xl bg-[rgba(255,45,85,0.1)] text-[var(--accent)] text-sm font-medium hover:bg-[rgba(255,45,85,0.15)]"
           >
             Reintentar
           </button>

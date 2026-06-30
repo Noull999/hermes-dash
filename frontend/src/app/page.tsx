@@ -232,7 +232,7 @@ export default function HomePage() {
       {/* ── Drop zone overlay ── */}
       {dragOver && (
         <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
-          <div className="rounded-2xl border-2 border-dashed border-[var(--cyan)] bg-[rgba(0,212,255,0.06)] backdrop-blur-sm px-8 py-6 text-center">
+          <div className="rounded-2xl border-2 border-dashed border-[var(--cyan)] bg-[rgba(255,45,85,0.06)] backdrop-blur-sm px-8 py-6 text-center">
             <p className="text-sm text-[var(--cyan)] font-semibold">📎 Suelta el archivo</p>
             <p className="text-[10px] text-[var(--text-muted)] mt-1">PDF, PNG, JPG, TXT, código...</p>
           </div>
@@ -242,7 +242,7 @@ export default function HomePage() {
       {/* ── Scrollable content ── */}
       <div
         ref={scrollRef}
-        className={`flex-1 overflow-y-auto transition-all ${dragOver ? 'bg-[rgba(0,212,255,0.03)]' : ''}`}
+        className={`flex-1 overflow-y-auto transition-all ${dragOver ? 'bg-[rgba(255,45,85,0.03)]' : ''}`}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
@@ -263,7 +263,7 @@ export default function HomePage() {
             <div className="reticle w-[240px] h-[240px] rounded-full border border-[var(--hairline)]" />
           </div>
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="reticle-rev w-[190px] h-[190px] rounded-full border border-dashed border-[rgba(79,227,255,0.15)]" />
+            <div className="reticle-rev w-[190px] h-[190px] rounded-full border border-dashed border-[rgba(255,45,85,0.15)]" />
           </div>
 
           {/* Corner telemetry */}
@@ -335,7 +335,7 @@ export default function HomePage() {
                   <button
                     key={sug.label}
                     onClick={() => sendMessage(sug.label)}
-                    className="glass text-left px-3 py-2.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[rgba(0,212,255,0.15)] transition-all"
+                    className="glass text-left px-3 py-2.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[rgba(255,45,85,0.15)] transition-all"
                   >
                     <span className="mr-1.5">{sug.icon}</span>
                     {sug.label}
@@ -344,7 +344,7 @@ export default function HomePage() {
               </div>
 
               {micActive && (
-                <div className="mt-6 px-4 py-2 rounded-xl bg-[rgba(0,212,255,0.06)] border border-[rgba(0,212,255,0.1)] text-xs text-[var(--cyan)]">
+                <div className="mt-6 px-4 py-2 rounded-xl bg-[rgba(255,45,85,0.06)] border border-[rgba(255,45,85,0.1)] text-xs text-[var(--cyan)]">
                   🎤 Habla normalmente, te escucho
                 </div>
               )}

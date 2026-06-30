@@ -11,11 +11,11 @@ interface BadgeProps {
 
 // Angular HUD chips: hairline border + low-alpha fill, mono uppercase text.
 const variants = {
-  default: 'border-[var(--hairline)] bg-[rgba(79,227,255,0.04)] text-[var(--text-muted)]',
+  default: 'border-[var(--hairline)] bg-[rgba(255,45,85,0.04)] text-[var(--text-muted)]',
   success: 'border-[rgba(93,255,176,0.3)] bg-[rgba(93,255,176,0.08)] text-[var(--success)]',
   warning: 'border-[rgba(255,177,61,0.3)] bg-[rgba(255,177,61,0.08)] text-[var(--amber)]',
   error: 'border-[rgba(255,93,108,0.3)] bg-[rgba(255,93,108,0.08)] text-[var(--error)]',
-  accent: 'border-[var(--hairline-strong)] bg-[rgba(79,227,255,0.08)] text-[var(--cyan)]',
+  accent: 'border-[var(--hairline-strong)] bg-[rgba(255,45,85,0.08)] text-[var(--cyan)]',
   purple: 'border-[rgba(255,177,61,0.3)] bg-[rgba(255,177,61,0.08)] text-[var(--amber)]',
 };
 

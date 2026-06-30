@@ -30,24 +30,37 @@ export default function BottomNav() {
               href={href}
               className={classNames(
                 'group relative flex flex-1 flex-col items-center gap-1 px-0.5 py-1.5 transition-all duration-200',
-                isActive ? 'text-[var(--cyan)]' : 'text-[var(--text-faint)] hover:text-[var(--text-muted)]'
+                isActive
+                  ? 'text-[var(--cyan)] scale-[1.04]'
+                  : 'text-[var(--text-faint)] hover:text-[var(--text-muted)] hover:scale-[1.02]'
               )}
             >
-              {/* active top bracket */}
+              {/* active top bracket - wider glow when active */}
               <span
                 className={classNames(
                   'absolute top-0 left-1/2 -translate-x-1/2 h-[2px] rounded-full transition-all duration-300',
-                  isActive ? 'w-7 bg-[var(--cyan)] shadow-[0_0_8px_var(--cyan)]' : 'w-0 bg-transparent'
+                  isActive
+                    ? 'w-7 bg-[var(--cyan)] shadow-[0_0_12px_var(--cyan)]'
+                    : 'w-0 bg-transparent group-hover:w-4 group-hover:bg-[var(--hairline-strong)]'
                 )}
               />
               <Icon
                 size={19}
                 className={classNames(
                   'transition-all duration-200',
-                  isActive && 'drop-shadow-[0_0_6px_var(--cyan)]'
+                  isActive && 'drop-shadow-[0_0_8px_var(--cyan)]'
                 )}
               />
-              <span className="hud-label text-[8px] leading-none">{label}</span>
+              <span className={classNames(
+                'hud-label text-[8px] leading-none transition-all duration-200',
+                isActive ? 'text-[var(--cyan)]' : 'text-[var(--text-faint)]'
+              )}>
+                {label}
+              </span>
+              {/* active dot indicator */}
+              {isActive && (
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[var(--cyan)] shadow-[0_0_6px_var(--cyan)]" />
+              )}
             </Link>
           );
         })}

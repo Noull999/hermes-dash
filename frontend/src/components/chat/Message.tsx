@@ -86,7 +86,7 @@ export default function Message({ message }: MessageProps) {
       <div
         className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center relative ${
           isUser
-            ? 'bg-[rgba(0,212,255,0.15)] text-[var(--accent)]'
+            ? 'bg-[rgba(255,45,85,0.15)] text-[var(--accent)]'
             : isSystem
             ? 'bg-[rgba(234,179,8,0.15)] text-[var(--warning)]'
             : 'bg-[rgba(139,92,246,0.15)] text-[var(--purple)]'
@@ -106,7 +106,7 @@ export default function Message({ message }: MessageProps) {
             isUser
               ? isVoice
                 ? 'bg-[rgba(139,92,246,0.15)] border border-[rgba(139,92,246,0.2)]'
-                : 'bg-[var(--accent)]/20 border border-[rgba(0,212,255,0.15)]'
+                : 'bg-[var(--accent)]/20 border border-[rgba(255,45,85,0.15)]'
               : isSystem
               ? 'bg-[rgba(234,179,8,0.08)] border border-[rgba(234,179,8,0.1)]'
               : 'bg-[var(--card)] border border-[rgba(255,255,255,0.06)]'

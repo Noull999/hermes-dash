@@ -121,7 +121,7 @@ export default function MemoryPanel() {
               ) : (
                 <div className="flex flex-wrap gap-1.5">
                   {data.active_projects.map((p) => (
-                    <span key={p} className="px-2 py-1 text-[10px] border border-[var(--hairline)] rounded bg-[rgba(79,227,255,0.04)] text-[var(--text-muted)]">{p}</span>
+                    <span key={p} className="px-2 py-1 text-[10px] border border-[var(--hairline)] rounded bg-[rgba(255,45,85,0.04)] text-[var(--text-muted)]">{p}</span>
                   ))}
                 </div>
               )}

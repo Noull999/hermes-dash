@@ -308,8 +308,8 @@ export default function CommandPalette() {
                       onMouseEnter={() => setActiveIdx(globalIdx)}
                       className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors ${
                         isActive
-                          ? 'bg-[rgba(0,212,255,0.12)] text-[var(--cyan)]'
-                          : 'text-[var(--text)] hover:bg-[rgba(0,212,255,0.06)]'
+                          ? 'bg-[rgba(255,45,85,0.12)] text-[var(--cyan)]'
+                          : 'text-[var(--text)] hover:bg-[rgba(255,45,85,0.06)]'
                       }`}
                     >
                       <Icon size={15} className="shrink-0 opacity-70" />

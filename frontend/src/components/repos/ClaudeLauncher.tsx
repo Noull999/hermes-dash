@@ -70,7 +70,7 @@ export default function ClaudeLauncher({ open, onClose, defaultRepo }: ClaudeLau
               onClick={() => setSelectedMode(id)}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                 selectedMode === id
-                  ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[rgba(0,212,255,0.2)]'
+                  ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[rgba(255,45,85,0.2)]'
                   : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[rgba(255,255,255,0.04)]'
               }`}
             >
@@ -107,7 +107,7 @@ export default function ClaudeLauncher({ open, onClose, defaultRepo }: ClaudeLau
                 onClick={() => setSelectedModel(model.id)}
                 className={`text-left p-3 rounded-xl border transition-all ${
                   selectedModel === model.id
-                    ? 'border-[var(--accent)]/50 bg-[rgba(0,212,255,0.06)]'
+                    ? 'border-[var(--accent)]/50 bg-[rgba(255,45,85,0.06)]'
                     : 'border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)] hover:border-[rgba(255,255,255,0.12)]'
                 }`}
               >
