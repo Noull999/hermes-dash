@@ -6,6 +6,7 @@ interface BentoCardProps {
   colSpan?: 1 | 2 | 3 | 4;
   rowSpan?: 1 | 2;
   title?: string;
+  icon?: ReactNode;
   children: ReactNode;
   className?: string;
   loading?: boolean;
@@ -17,6 +18,7 @@ export default function BentoCard({
   colSpan = 1,
   rowSpan = 1,
   title,
+  icon,
   children,
   className = '',
   loading,
@@ -56,6 +58,7 @@ export default function BentoCard({
         <>
           {title && (
             <div className="flex items-center gap-2 mb-3">
+              {icon && <span className="text-[var(--text-faint)]">{icon}</span>}
               <span className="hud-label text-[8px] text-[var(--text-faint)] tracking-wider">
                 {title.toUpperCase()}
               </span>

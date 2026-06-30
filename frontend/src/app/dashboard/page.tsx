@@ -12,12 +12,13 @@ import ServiceMonitor from '@/components/dashboard/ServiceMonitor';
 import TokenBudget from '@/components/dashboard/TokenBudget';
 import ActiveJobs from '@/components/dashboard/ActiveJobs';
 import RecentRepos from '@/components/dashboard/RecentRepos';
-import ActivityFeed from '@/components/dashboard/ActivityFeed';
 import ImportantEmails from '@/components/dashboard/ImportantEmails';
-import QuickChat from '@/components/dashboard/QuickChat';
 import WeatherWidget from '@/components/dashboard/WeatherWidget';
+import TimelineCard from '@/components/dashboard/TimelineCard';
+import NextEvent from '@/components/dashboard/NextEvent';
+import ReminderList from '@/components/dashboard/ReminderList';
 import { getTimeOfDay } from '@/lib/utils';
-import { Sparkles, Wifi, WifiOff } from 'lucide-react';
+import { Sparkles, Wifi, WifiOff, ListTodo, CalendarDays, Activity } from 'lucide-react';
 
 const STATE_LABEL: Record<string, string> = {
   idle: 'STANDBY',
@@ -66,7 +67,7 @@ export default function DashboardPage() {
                 orbState === 'error'
                   ? 'border-[rgba(255,93,108,0.3)] text-[var(--error)]'
                   : orbState === 'success'
-                  ? 'border-[rgba(93,255,176,0.3)] text-[var(--success)]'
+                  ? 'border-[rgba(255,93,108,0.3)] text-[var(--success)]'
                   : 'border-[var(--hairline-strong)] text-[var(--cyan)]'
               }`}
             >
@@ -86,9 +87,27 @@ export default function DashboardPage() {
 
       {/* ── Bento Grid Dashboard ── */}
       <div className="bento-grid px-4 pb-24">
-        {/* ── Row 1: Monitor + Tokens + Clima ── */}
+        {/* ── PRIORIDAD 1: Correos relevantes ── */}
+        <BentoCard colSpan={4} title="CORREOS RELEVANTES" className="order-first md:order-none">
+          <ImportantEmails />
+        </BentoCard>
+
+        {/* ── PRIORIDAD 2: Monitor + Recordatorios ── */}
         <BentoCard colSpan={2} title="MONITOR DE SERVICIOS">
           <ServiceMonitor />
+        </BentoCard>
+
+        <BentoCard colSpan={2} title="RECORDATORIOS" icon={<ListTodo size={14} />}>
+          <ReminderList />
+        </BentoCard>
+
+        {/* ── PRIORIDAD 3: Próximo evento + Sistema + Tokens + Clima ── */}
+        <BentoCard colSpan={1} title="PRÓXIMO EVENTO" icon={<CalendarDays size={14} />}>
+          <NextEvent />
+        </BentoCard>
+
+        <BentoCard colSpan={1} title="SISTEMA">
+          <SystemStatus />
         </BentoCard>
 
         <BentoCard colSpan={1} title="TOKENS">
@@ -99,31 +118,18 @@ export default function DashboardPage() {
           <WeatherWidget />
         </BentoCard>
 
-        {/* ── Alert row: correos relevantes ── */}
-        <BentoCard colSpan={4} title="CORREOS RELEVANTES" className="order-first md:order-none">
-          <ImportantEmails />
+        {/* ── PRIORIDAD 4: Timeline Hermes ── */}
+        <BentoCard colSpan={4} title="TIMELINE HERMES" icon={<Activity size={14} />}>
+          <TimelineCard />
         </BentoCard>
 
-        {/* ── Row 2: System + ActiveJobs ── */}
-        <BentoCard colSpan={2} title="SISTEMA">
-          <SystemStatus />
-        </BentoCard>
-
-        <BentoCard colSpan={2} title="TRABAJOS ACTIVOS">
-          <ActiveJobs />
-        </BentoCard>
-
-        {/* ── Row 3: Activity + Repos ── */}
-        <BentoCard colSpan={2} title="ACTIVIDAD RECIENTE">
-          <ActivityFeed />
-        </BentoCard>
-
+        {/* ── PRIORIDAD 5: Repos + Trabajos ── */}
         <BentoCard colSpan={2} title="REPOSITORIOS">
           <RecentRepos />
         </BentoCard>
 
-        <BentoCard colSpan={2} title="MENSAJE RÁPIDO" className="col-span-full md:col-span-4">
-          <QuickChat />
+        <BentoCard colSpan={2} title="TRABAJOS ACTIVOS">
+          <ActiveJobs />
         </BentoCard>
       </div>
     </ClientLayout>

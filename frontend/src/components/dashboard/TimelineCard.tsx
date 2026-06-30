@@ -1,6 +1,5 @@
 'use client';
 
-import Card from '@/components/ui/Card';
 import { useHermesStore } from '@/store/useHermesStore';
 import { GitCommit, Rocket, StickyNote, Server, MessageSquare, RefreshCw, Clock } from 'lucide-react';
 import { useEffect } from 'react';
@@ -35,38 +34,34 @@ export default function TimelineCard() {
 
   if (timelineLoading && timeline.length === 0) {
     return (
-      <Card>
-        <div className="space-y-3">
-          <div className="skeleton h-5 w-36" />
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex gap-3">
-              <div className="skeleton w-8 h-8 rounded-full flex-shrink-0" />
-              <div className="flex-1 space-y-1">
-                <div className="skeleton h-4 w-3/4" />
-                <div className="skeleton h-3 w-1/2" />
-              </div>
+      <div className="space-y-3">
+        <div className="skeleton h-5 w-36" />
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="flex gap-3">
+            <div className="skeleton w-8 h-8 rounded-full flex-shrink-0" />
+            <div className="flex-1 space-y-1">
+              <div className="skeleton h-4 w-3/4" />
+              <div className="skeleton h-3 w-1/2" />
             </div>
-          ))}
-        </div>
-      </Card>
+          </div>
+        ))}
+      </div>
     );
   }
 
   if (timelineError) {
     return (
-      <Card>
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-[var(--error)]">Error: {timelineError}</span>
-          <button onClick={fetchTimeline} className="p-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.06)]">
-            <RefreshCw size={14} className="text-[var(--accent)]" />
-          </button>
-        </div>
-      </Card>
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-[var(--error)]">Error: {timelineError}</span>
+        <button onClick={fetchTimeline} className="p-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.06)]">
+          <RefreshCw size={14} className="text-[var(--accent)]" />
+        </button>
+      </div>
     );
   }
 
   return (
-    <Card>
+    <div>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Clock size={16} className="text-[var(--warning)]" />
@@ -115,6 +110,6 @@ export default function TimelineCard() {
           ))
         )}
       </div>
-    </Card>
+    </div>
   );
 }
