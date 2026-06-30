@@ -118,18 +118,18 @@ export default function DashboardPage() {
           <ReminderList />
         </BentoCard>
 
-        {/* ── PRIORIDAD 4: Timeline Hermes ── */}
-        <BentoCard colSpan={4} title="TIMELINE HERMES" icon={<Activity size={14} />}>
-          <TimelineCard />
-        </BentoCard>
-
-        {/* ── PRIORIDAD 5: Repos + Trabajos ── */}
+        {/* ── PRIORIDAD 4: Repos + Trabajos ── */}
         <BentoCard colSpan={2} title="REPOSITORIOS">
           <RecentRepos />
         </BentoCard>
 
         <BentoCard colSpan={2} title="TRABAJOS ACTIVOS">
           <ActiveJobs />
+        </BentoCard>
+
+        {/* ── PRIORIDAD 5: Timeline Hermes al fondo ── */}
+        <BentoCard colSpan={4} title="TIMELINE HERMES" icon={<Activity size={14} />}>
+          <TimelineCard />
         </BentoCard>
       </div>
     </ClientLayout>
