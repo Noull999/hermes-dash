@@ -61,7 +61,7 @@ async def _get_or_create_hermes_session(dashboard_session_id: str) -> str:
                 f"{_GATEWAY_URL}/api/sessions",
                 json={"title": session_title}
             ) as resp:
-                if resp.status != 200:
+                if resp.status not in (200, 201):
                     text = await resp.text()
                     raise RuntimeError(f"Error creating Hermes session: {resp.status} {text}")
                 data = await resp.json()
