@@ -92,22 +92,9 @@ export default function DashboardPage() {
           <ImportantEmails />
         </BentoCard>
 
-        {/* ── PRIORIDAD 2: Monitor + Recordatorios ── */}
+        {/* ── PRIORIDAD 2: Monitor + Tokens + Clima ── */}
         <BentoCard colSpan={2} title="MONITOR DE SERVICIOS">
           <ServiceMonitor />
-        </BentoCard>
-
-        <BentoCard colSpan={2} title="RECORDATORIOS" icon={<ListTodo size={14} />}>
-          <ReminderList />
-        </BentoCard>
-
-        {/* ── PRIORIDAD 3: Próximo evento + Sistema + Tokens + Clima ── */}
-        <BentoCard colSpan={1} title="PRÓXIMO EVENTO" icon={<CalendarDays size={14} />}>
-          <NextEvent />
-        </BentoCard>
-
-        <BentoCard colSpan={1} title="SISTEMA">
-          <SystemStatus />
         </BentoCard>
 
         <BentoCard colSpan={1} title="TOKENS">
@@ -116,6 +103,19 @@ export default function DashboardPage() {
 
         <BentoCard colSpan={1} title="CLIMA">
           <WeatherWidget />
+        </BentoCard>
+
+        {/* ── PRIORIDAD 3: Próximo evento + Sistema + Recordatorios ── */}
+        <BentoCard colSpan={1} title="PRÓXIMO EVENTO" icon={<CalendarDays size={14} />}>
+          <NextEvent />
+        </BentoCard>
+
+        <BentoCard colSpan={1} title="SISTEMA">
+          <SystemStatus />
+        </BentoCard>
+
+        <BentoCard colSpan={2} title="RECORDATORIOS" icon={<ListTodo size={14} />}>
+          <ReminderList />
         </BentoCard>
 
         {/* ── PRIORIDAD 4: Timeline Hermes ── */}
