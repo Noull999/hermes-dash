@@ -217,17 +217,25 @@ export interface EmailData {
   date: string;
   snippet: string;
   labelIds: string[];
+  relevance?: 'urgent' | 'important' | 'normal' | 'spam';
 }
 
 export interface EmailResponse {
   emails: EmailData[];
   total: number;
   error?: string;
+  stats?: Record<string, number>;
+  filtered?: boolean;
 }
 
-export async function getEmails(q = 'in:inbox', maxResults = 10) {
+export async function getEmails(q = 'in:inbox', maxResults = 10, relevantOnly = false) {
   const params = new URLSearchParams({ q, max_results: String(maxResults) });
+  if (relevantOnly) params.set('relevant_only', 'true');
   return request<EmailResponse>(`/api/email?${params}`);
+}
+
+export async function getRelevantEmails(maxResults = 10) {
+  return getEmails('in:inbox', maxResults, true);
 }
 
 // ── Calendar ──────────────────────────────────────────────────────────────

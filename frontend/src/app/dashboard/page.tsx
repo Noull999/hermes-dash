@@ -13,6 +13,7 @@ import TokenBudget from '@/components/dashboard/TokenBudget';
 import ActiveJobs from '@/components/dashboard/ActiveJobs';
 import RecentRepos from '@/components/dashboard/RecentRepos';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
+import ImportantEmails from '@/components/dashboard/ImportantEmails';
 import QuickChat from '@/components/dashboard/QuickChat';
 import WeatherWidget from '@/components/dashboard/WeatherWidget';
 import { getTimeOfDay } from '@/lib/utils';
@@ -96,6 +97,11 @@ export default function DashboardPage() {
 
         <BentoCard colSpan={1} title="CLIMA">
           <WeatherWidget />
+        </BentoCard>
+
+        {/* ── Alert row: correos relevantes ── */}
+        <BentoCard colSpan={4} title="CORREOS RELEVANTES" className="order-first md:order-none">
+          <ImportantEmails />
         </BentoCard>
 
         {/* ── Row 2: System + ActiveJobs ── */}
