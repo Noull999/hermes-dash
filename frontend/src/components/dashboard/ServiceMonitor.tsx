@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { getMonitor, MonitorData } from '@/lib/api';
-import { Wifi, WifiOff, AlertTriangle, Clock } from 'lucide-react';
+import { Wifi, WifiOff, AlertTriangle, Clock, RefreshCw, ExternalLink } from 'lucide-react';
 
 const STATUS_COLORS: Record<string, string> = {
   up: 'var(--success)',
@@ -18,9 +18,18 @@ const STATUS_LABELS: Record<string, string> = {
   unknown: '?',
 };
 
-function ServiceCard({ svc }: { svc: MonitorData['services'][0] }) {
+const ACTION_HINTS: Record<string, string> = {
+  google_calendar: 'Token expirado → ejecuta "hermes google auth" en la terminal',
+  github_api: 'Si el rate limit se acaba, espera al reset',
+  vercel_frontend: 'Haz "vercel --prod" para desplegar',
+  cloudflare_tunnel: 'Revisa que cloudflared esté corriendo en el VPS',
+  ssl_certs: 'Si un cert está por vencer, renueva con Let\'s Encrypt',
+};
+
+function ServiceCard({ svc, onRefresh }: { svc: MonitorData['services'][0]; onRefresh: () => void }) {
   const color = STATUS_COLORS[svc.status] || 'var(--text-faint)';
   const label = STATUS_LABELS[svc.status] || '?';
+  const hint = svc.status !== 'up' ? ACTION_HINTS[svc.key] : null;
 
   return (
     <div className="flex items-center gap-2 py-1.5 px-2 rounded-[2px] border border-[var(--hairline)] bg-[rgba(0,0,0,0.2)]">
@@ -54,7 +63,22 @@ function ServiceCard({ svc }: { svc: MonitorData['services'][0] }) {
         {svc.error && (
           <div className="text-[7px] text-[var(--error)] mt-0.5 truncate">{svc.error}</div>
         )}
+        {hint && (
+          <div className="text-[7px] text-[var(--amber)] mt-0.5 flex items-center gap-1">
+            <AlertTriangle size={6} />
+            {hint}
+          </div>
+        )}
       </div>
+      {svc.status !== 'up' && (
+        <button
+          onClick={onRefresh}
+          className="shrink-0 w-5 h-5 flex items-center justify-center rounded-[2px] border border-[var(--hairline)] hover:bg-[rgba(79,227,255,0.06)] transition-colors"
+          title="Re-check"
+        >
+          <RefreshCw size={8} className="text-[var(--text-faint)]" />
+        </button>
+      )}
     </div>
   );
 }
@@ -64,7 +88,7 @@ export default function ServiceMonitor() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const result = await getMonitor();
       setData(result);
@@ -74,7 +98,7 @@ export default function ServiceMonitor() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -120,12 +144,19 @@ export default function ServiceMonitor() {
           {allOk ? 'TODOS LOS SERVICIOS OK' : `${issues.length} SERVICIO(S) CON PROBLEMAS`}
         </span>
         <span className="ml-auto text-[8px] text-[var(--text-faint)]">{checkedTime}</span>
+        <button
+          onClick={fetchData}
+          className="shrink-0 w-5 h-5 flex items-center justify-center rounded-[2px] border border-[var(--hairline)] hover:bg-[rgba(79,227,255,0.06)] transition-colors"
+          title="Re-check ahora"
+        >
+          <RefreshCw size={8} className="text-[var(--text-faint)]" />
+        </button>
       </div>
 
       {/* Services grid */}
       <div className="grid grid-cols-1 gap-1">
         {data.services.map((svc) => (
-          <ServiceCard key={svc.key} svc={svc} />
+          <ServiceCard key={svc.key} svc={svc} onRefresh={fetchData} />
         ))}
       </div>
     </div>
