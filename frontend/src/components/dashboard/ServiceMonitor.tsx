@@ -25,7 +25,7 @@ const ACTION_MAP: Record<string, string> = {
 };
 
 const ACTION_HINTS: Record<string, string> = {
-  google_calendar: 'Token expirado → ejecuta "hermes google auth" en la terminal',
+  google_calendar: 'Token revocado — necesitas re-autenticar. Dame el archivo client_secret.json de Google Cloud y te ayudo con el flujo OAuth',
   github_api: 'Rate limit OK — espera al reset si se acaba',
   ssl_certs: 'Si un cert está por vencer, renueva con certbot',
 };

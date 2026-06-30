@@ -221,20 +221,29 @@ async def get_monitor(_token: str = Depends(verify_token)):
 
     # ── 5. Google Calendar ──────────────────────────────────────────
     google_ok = _GOOGLE_TOKEN.exists()
+    google_status = "unknown"
+    google_error = None
+    google_details = {"token_exists": google_ok}
+
     if google_ok:
-        try:
-            data = json.loads(_GOOGLE_TOKEN.read_text())
-            expiry_str = data.get("expiry", "")
-            if expiry_str:
-                expiry = datetime.fromisoformat(expiry_str.replace("Z", "+00:00"))
-                google_expired = expiry < datetime.now(timezone.utc)
-                google_status = "degraded" if google_expired else "up"
-            else:
+        # Use the official Hermes setup script to check
+        setup_script = str(Path.home() / ".hermes" / "hermes-agent" / "skills" / "productivity" / "google-workspace" / "scripts" / "setup.py")
+        if Path(setup_script).exists():
+            result = subprocess.run(
+                [setup_script, "--check"],
+                capture_output=True, text=True, timeout=15
+            )
+            if result.returncode == 0:
                 google_status = "up"
-        except Exception:
+            else:
+                google_status = "degraded"
+                google_error = result.stdout.strip() or "Token revocado o expirado"
+        else:
             google_status = "degraded"
+            google_error = "Script setup.py no encontrado"
     else:
         google_status = "down"
+        google_error = "Token file no encontrado"
 
     results.append({
         "name": "Google Calendar",
@@ -243,8 +252,8 @@ async def get_monitor(_token: str = Depends(verify_token)):
         "status": google_status,
         "http_status": None,
         "latency_ms": None,
-        "error": "token file missing" if not google_ok else ("token expired" if google_expired else None),
-        "details": {"token_exists": google_ok},
+        "error": google_error,
+        "details": google_details,
     })
 
     # ── 6. SSL Expiry ────────────────────────────────────────────────
