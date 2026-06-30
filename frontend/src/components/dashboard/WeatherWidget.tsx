@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, startTransition } from 'react';
-import { CloudSun, RefreshCw, Thermometer, Droplets, Wind, MapPin } from 'lucide-react';
+import { CloudSun, RefreshCw, Thermometer, Droplets, Wind, MapPin, Eye, Sun } from 'lucide-react';
 
 interface WeatherData {
   current: {
@@ -10,8 +10,26 @@ interface WeatherData {
     apparent_temperature: number;
     weather_code: number;
     wind_speed_10m: number;
+    precipitation: number;
+    pressure_msl: number;
+    visibility: number;
+    uv_index: number;
   };
 }
+
+const WEATHER_LABELS: Record<number, string> = {
+  0: 'Despejado', 1: 'Mayormente despejado', 2: 'Parcialmente nublado', 3: 'Nublado',
+  45: 'Niebla', 48: 'Niebla con escarcha',
+  51: 'Llovizna ligera', 53: 'Llovizna moderada', 55: 'Llovizna densa',
+  56: 'Llovizna helada ligera', 57: 'Llovizna helada densa',
+  61: 'Lluvia ligera', 63: 'Lluvia moderada', 65: 'Lluvia fuerte',
+  66: 'Lluvia helada ligera', 67: 'Lluvia helada fuerte',
+  71: 'Nevada ligera', 73: 'Nevada moderada', 75: 'Nevada fuerte',
+  77: 'Granos de nieve',
+  80: 'Chubascos ligeros', 81: 'Chubascos moderados', 82: 'Chubascos violentos',
+  85: 'Chubascos de nieve ligeros', 86: 'Chubascos de nieve fuertes',
+  95: 'Tormenta', 96: 'Tormenta con granizo ligero', 99: 'Tormenta con granizo fuerte',
+};
 
 const weatherEmoji: Record<number, string> = {
   0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
@@ -33,7 +51,7 @@ export default function WeatherWidget() {
     setError(null);
     try {
       const res = await fetch(
-        'https://api.open-meteo.com/v1/forecast?latitude=-41.47&longitude=-72.94&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=America/Santiago'
+        'https://api.open-meteo.com/v1/forecast?latitude=-41.47&longitude=-72.94&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation,pressure_msl,visibility,uv_index&timezone=America/Santiago'
       );
       if (!res.ok) throw new Error('Weather API error');
       const data = await res.json();
@@ -81,10 +99,12 @@ export default function WeatherWidget() {
 
   const { current } = weather;
   const emoji = weatherEmoji[current.weather_code] || '🌤️';
+  const label = WEATHER_LABELS[current.weather_code] || '';
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
+    <div className="space-y-2.5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
           <MapPin size={10} className="text-[var(--cyan)]" />
           <span className="hud-label text-[8px]">PTO. MONTT</span>
@@ -94,28 +114,70 @@ export default function WeatherWidget() {
         </button>
       </div>
 
-      <div className="flex items-center gap-2">
+      {/* Main temp + condition */}
+      <div className="flex items-center gap-2.5">
         <span className="text-2xl leading-none">{emoji}</span>
-        <div className="flex items-baseline gap-1.5">
-          <span className="hud-readout text-xl font-bold glow-text leading-none">
-            {Math.round(current.temperature_2m)}°
-          </span>
-          <span className="hud-label text-[8px] text-[var(--text-muted)]">
-            SENS {Math.round(current.apparent_temperature)}°
-          </span>
+        <div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="hud-readout text-xl font-bold glow-text leading-none">
+              {Math.round(current.temperature_2m)}°
+            </span>
+            <span className="hud-label text-[8px] text-[var(--text-muted)]">
+              SENS {Math.round(current.apparent_temperature)}°
+            </span>
+          </div>
+          <div className="hud-label text-[8px] text-[var(--text-faint)] mt-0.5">{label}</div>
         </div>
       </div>
 
-      <div className="flex items-center gap-3 mt-1.5">
-        {[
-          { Icon: Thermometer, label: 'HUM', val: `${current.relative_humidity_2m}%` },
-          { Icon: Wind, label: 'VIENTO', val: `${Math.round(current.wind_speed_10m)}km/h` },
-        ].map(({ Icon, label, val }) => (
-          <div key={label} className="flex items-center gap-1">
-            <Icon size={9} className="text-[var(--text-faint)]" />
-            <span className="hud-readout text-[10px] text-[var(--text)]">{val}</span>
+      {/* Extra stats in a 2x2 grid */}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+        <div className="flex items-center gap-1.5">
+          <Droplets size={8} className="text-[var(--cyan)] shrink-0" />
+          <div>
+            <div className="hud-readout text-[10px] text-[var(--text)]">{current.relative_humidity_2m}%</div>
+            <div className="hud-label text-[7px] text-[var(--text-faint)]">HUMEDAD</div>
           </div>
-        ))}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Wind size={8} className="text-[var(--cyan)] shrink-0" />
+          <div>
+            <div className="hud-readout text-[10px] text-[var(--text)]">{Math.round(current.wind_speed_10m)} km/h</div>
+            <div className="hud-label text-[7px] text-[var(--text-faint)]">VIENTO</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Sun size={8} className="text-[var(--amber)] shrink-0" />
+          <div>
+            <div className="hud-readout text-[10px] text-[var(--text)]">{current.uv_index.toFixed(1)}</div>
+            <div className="hud-label text-[7px] text-[var(--text-faint)]">UV</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Eye size={8} className="text-[var(--text-faint)] shrink-0" />
+          <div>
+            <div className="hud-readout text-[10px] text-[var(--text)]">{(current.visibility / 1000).toFixed(1)} km</div>
+            <div className="hud-label text-[7px] text-[var(--text-faint)]">VISIB.</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Precipitation & Pressure row */}
+      <div className="flex items-center justify-between px-2 py-1.5 rounded border border-[var(--hairline)] bg-[rgba(0,0,0,0.12)]">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px]">💧</span>
+          <div>
+            <div className="hud-readout text-[9px] text-[var(--text)]">{current.precipitation || 0} mm</div>
+            <div className="hud-label text-[7px] text-[var(--text-faint)]">PRECIP.</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Thermometer size={8} className="text-[var(--text-faint)]" />
+          <div>
+            <div className="hud-readout text-[9px] text-[var(--text)]">{Math.round(current.pressure_msl)} hPa</div>
+            <div className="hud-label text-[7px] text-[var(--text-faint)]">PRESIÓN</div>
+          </div>
+        </div>
       </div>
     </div>
   );
