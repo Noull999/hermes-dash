@@ -1,72 +1,29 @@
-"""WebSocket /api/chat — Bidirectional chat usando el LLM via gateway Hermes.
+"""WebSocket /api/chat — Conecta al agente Hermes via gateway API.
 
-Soporta calendario: detecta intents como "agenda X" y crea eventos en Google Calendar.
+En vez de llamar al LLM directo (sin tools), usa el endpoint
+POST /api/sessions/{session_id}/chat/stream del gateway Hermes,
+que ejecuta el agente completo con tools, memoria y habilidades.
 """
 
 import json
 import asyncio
 import os
 import sys
-import re
+import uuid
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
-from openai import AsyncOpenAI
+import aiohttp
 
-# ── Session persistence ──────────────────────────────────────────────
+# ── Session persistence (dashboard) ──────────────────────────────
 from routes.sessions import append_message, auto_title_session, _get_db
 
-# ── Push notification helper ─────────────────────────────────────────
-async def _send_chat_push(session_id: str, preview: str):
-    """Send a push notification for a new chat response."""
-    try:
-        from routes.push import _load_subs, _send_push
-        subs = _load_subs()
-        if not subs:
-            return
-        title = "💬 Hermes respondió"
-        body = (preview or "")[:120]
-        if len(preview or "") > 120:
-            body += "…"
-        import asyncio
-        for sub in subs:
-            await asyncio.to_thread(
-                _send_push, sub,
-                {"title": title, "body": body, "icon": "/icon-192.png",
-                 "tag": f"hermes-chat-{session_id}", "data": {"url": "/"}}
-            )
-    except Exception:
-        pass
-
-# ── Token tracker ───────────────────────────────────────────────────
-_SCRIPTS_DIR = Path.home() / ".hermes" / "scripts"
-if str(_SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPTS_DIR))
-try:
-    from token_tracker import log_usage as _log_usage
-    _HAS_TRACKER = True
-except ImportError:
-    _HAS_TRACKER = False
-
-router = APIRouter(tags=["chat"])
-
-# ── Calendar support ───────────────────────────────────────────────────
-try:
-    from google.auth.transport.requests import Request as GoogleRequest
-    from google.oauth2.credentials import Credentials
-    from googleapiclient.discovery import build
-    _HAS_CALENDAR = True
-except ImportError:
-    _HAS_CALENDAR = False
-
-
-# ── Config desde .hermes/.env ──────────────────────────────────────────
+# ── Config ───────────────────────────────────────────────────────
 _HERMES_ENV = Path.home() / ".hermes" / ".env"
 
-
 def _load_env() -> dict:
-    """Lee OPENCODE_GO_API_KEY y OPENER_BASE_URL del .hermes/.env."""
     env = {}
     if _HERMES_ENV.exists():
         for line in _HERMES_ENV.read_text().splitlines():
@@ -77,313 +34,92 @@ def _load_env() -> dict:
             env[key.strip()] = val.strip().strip("\"'")
     return env
 
-
 _env = _load_env()
 _API_KEY = _env.get("API_SERVER_KEY") or os.environ.get("API_SERVER_KEY", "")
-_BASE_URL = "http://localhost:8642/v1"
-_MODEL = _env.get("OPENER_MODEL") or "hermes-agent"
-_SYSTEM_PROMPT = ""  # El gateway usa su propio system prompt del agente Hermes
+_GATEWAY_URL = "http://localhost:8642"  # Hermes gateway API base
 
-# ── Calendar intent detection patterns ──────────────────────────────────
-_CALENDAR_PATTERNS = [
-    r"\bagenda\b",
-    r"\bprograma\b",
-    r"\bcalendariza\b",
-    r"\bpon(?:e|me|le|)\b.*\b(?:reunion|evento|cita)\b",
-    r"\bagrega\b.*\b(?:al|el)\s+calendario\b",
-    r"\bcrea\b.*\b(?:evento|reunion|cita)\b",
-    r"\breunion\b.*\b(?:manana|hoy|proximo|proxima|el\s+\d)",
-    r"\bquiero\b.*\b(?:agendar|programar)\b",
-    r"\breserva\b",
-    r"\bschedule\b",
-    r"\bset\b.*\b(?:meeting|appointment|event)\b",
-]
+router = APIRouter(tags=["chat"])
 
-# ── Reminder intent detection patterns (crea reminder en el sistema del dashboard)
-_REMINDER_PATTERNS = [
-    r"\brecord(?:ar|atorio|ame)\b",
-    r"\bcrea\b.*\b(?:recordatorio|alerta|aviso)\b",
-    r"\bpon(?:me|le)?\b.*\b(?:recordatorio|alerta)\b",
-]
+# ── Hermes session mapping ───────────────────────────────────────
+# Maps dashboard session_id -> hermes gateway session_id
+_hermes_sessions: dict[str, str] = {}
+_session_lock = asyncio.Lock()
 
-# Compiled patterns
-_CALENDAR_RE = [re.compile(p, re.IGNORECASE) for p in _CALENDAR_PATTERNS]
-_REMINDER_RE = [re.compile(p, re.IGNORECASE) for p in _REMINDER_PATTERNS]
+async def _get_or_create_hermes_session(dashboard_session_id: str) -> str:
+    """Get existing Hermes session or create a new one for this dashboard session."""
+    async with _session_lock:
+        cached = _hermes_sessions.get(dashboard_session_id)
+        if cached:
+            return cached
 
-# ── Calendar extraction prompt ──────────────────────────────────────────
-_CALENDAR_EXTRACT_PROMPT = """Eres un extractor de eventos de calendario. Del mensaje del usuario, extrae:
-- title: título del evento (obligatorio)
-- start: fecha/hora de inicio en ISO 8601 con timezone America/Santiago (obligatorio)
-- end: fecha/hora de término en ISO 8601 con timezone America/Santiago (obligatorio, default 1 hora después)
-- description: descripción opcional
-- location: ubicación opcional
+        headers = {"Authorization": f"Bearer {_API_KEY}"}
+        async with aiohttp.ClientSession(headers=headers) as session:
+            # Create a new Hermes session
+            async with session.post(
+                f"{_GATEWAY_URL}/api/sessions",
+                json={"title": f"Dashboard {dashboard_session_id[:8]}"}
+            ) as resp:
+                if resp.status != 200:
+                    text = await resp.text()
+                    raise RuntimeError(f"Error creating Hermes session: {resp.status} {text}")
+                data = await resp.json()
+                hermes_session_id = data.get("id", "")
+                if not hermes_session_id:
+                    raise RuntimeError("No session id in Hermes response")
+                _hermes_sessions[dashboard_session_id] = hermes_session_id
+                return hermes_session_id
 
-Si no se especifica hora, asume las 10:00 AM Chile. Si no se especifica fecha, asume hoy.
-Si no hay suficiente información, completa con defaults razonables basados en el contexto.
-
-Responde SOLO con un JSON válido, nada más.
-"""
-
-
-def _is_calendar_intent(text: str) -> bool:
-    """Detecta si el mensaje es una solicitud de agendar algo."""
-    if not text or len(text) < 5:
-        return False
-    return any(p.search(text) for p in _CALENDAR_RE)
-
-
-def _is_reminder_intent(text: str) -> bool:
-    """Detecta si el mensaje es una solicitud de crear recordatorio."""
-    if not text or len(text) < 5:
-        return False
-    return any(p.search(text) for p in _REMINDER_RE)
-
-
-_REMINDER_EXTRACT_PROMPT = """Eres un extractor de recordatorios. Del mensaje del usuario, extrae:
-- text: texto del recordatorio (obligatorio)
-- datetime: fecha/hora en ISO 8601 con timezone America/Santiago (obligatorio)
-- project: nombre del proyecto asociado (opcional, default "general")
-
-Si no se especifica hora exacta, asume las 12:00 PM Chile.
-Si no se especifica fecha, asume mañana a las 12:00 PM Chile.
-
-Responde SOLO con un JSON válido, nada más."""
-
-
-async def _parse_event_with_llm(text: str) -> dict | None:
-    """Usa el LLM para extraer datos del evento del mensaje."""
-    client = AsyncOpenAI(api_key=_API_KEY, base_url=_BASE_URL)
-    try:
-        resp = await client.chat.completions.create(
-            model=_MODEL,
-            messages=[
-                {"role": "system", "content": _CALENDAR_EXTRACT_PROMPT},
-                {"role": "user", "content": text},
-            ],
-            temperature=0.1,
-            max_tokens=500,
-        )
-        raw = resp.choices[0].message.content or ""
-        content = raw.strip()
-        # Limpiar posible markdown code block
-        if content.startswith("```"):
-            content = content.split("\n", 1)[-1]
-            content = content.rsplit("```", 1)[0]
-        return json.loads(content.strip())
-    except Exception as e:
-        print(f"[chat_ws] Error parsing calendar intent: {e}")
-        return None
-
-
-def _get_calendar_service():
-    """Obtiene el servicio de Google Calendar."""
-    token_path = os.path.expanduser("~/.hermes/google_token.json")
-    if not os.path.exists(token_path):
-        return None
-    try:
-        creds = Credentials.from_authorized_user_file(token_path)
-        if creds.expired and creds.refresh_token:
-            creds.refresh(GoogleRequest())
-            with open(token_path, "w") as f:
-                f.write(creds.to_json())
-        return build("calendar", "v3", credentials=creds)
-    except Exception as e:
-        print(f"[chat_ws] Calendar auth error: {e}")
-        return None
-
-
-async def _create_calendar_event(event_data: dict) -> str:
-    """Crea un evento en Google Calendar y devuelve un mensaje de resultado."""
-    if not _HAS_CALENDAR:
-        return "⚠️ Google Calendar no está configurado en el backend."
-
-    service = _get_calendar_service()
-    if not service:
-        return "⚠️ No pude autenticar con Google Calendar. Revisa el token."
-
-    try:
-        body = {
-            "summary": event_data.get("title", "Evento"),
-            "description": event_data.get("description", "Creado desde Hermes Dashboard"),
-            "start": {"dateTime": event_data["start"], "timeZone": "America/Santiago"},
-            "end": {"dateTime": event_data["end"], "timeZone": "America/Santiago"},
-            "reminders": {
-                "useDefault": False,
-                "overrides": [
-                    {"method": "popup", "minutes": 30},
-                ],
-            },
-        }
-        if event_data.get("location"):
-            body["location"] = event_data["location"]
-
-        created = service.events().insert(calendarId="primary", body=body).execute()
-
-        link = created.get("htmlLink", "")
-        summary = created.get("summary", "Evento")
-        start_str = created.get("start", {}).get("dateTime", "")
-
-        msg = (
-            f"✅ **{summary}** agendado en Google Calendar\n"
-            f"📅 {start_str}\n"
-        )
-        if link:
-            msg += f"🔗 {link}"
-        return msg
-
-    except Exception as e:
-        return f"⚠️ Error al crear el evento: {str(e)}"
-
-
-_REMINDERS_FILE = Path.home() / ".hermes" / "reminders.json"
-
-
-async def _parse_reminder_with_llm(text: str) -> dict | None:
-    """Usa el LLM para extraer datos del recordatorio del mensaje."""
-    client = AsyncOpenAI(api_key=_API_KEY, base_url=_BASE_URL)
-    try:
-        resp = await client.chat.completions.create(
-            model=_MODEL,
-            messages=[
-                {"role": "system", "content": _REMINDER_EXTRACT_PROMPT},
-                {"role": "user", "content": text},
-            ],
-            temperature=0.1,
-            max_tokens=500,
-        )
-        raw = resp.choices[0].message.content or ""
-        content = raw.strip()
-        if content.startswith("```"):
-            content = content.split("\n", 1)[-1]
-            content = content.rsplit("```", 1)[0]
-        return json.loads(content.strip())
-    except Exception as e:
-        print(f"[chat_ws] Error parsing reminder intent: {e}")
-        return None
-
-
-def _save_reminder(data: dict) -> dict:
-    """Guarda un recordatorio en reminders.json."""
-    _REMINDERS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    reminders = []
-    if _REMINDERS_FILE.exists():
+async def _delete_hermes_session(dashboard_session_id: str) -> None:
+    """Clean up Hermes session when dashboard session is deleted."""
+    async with _session_lock:
+        hermes_id = _hermes_sessions.pop(dashboard_session_id, None)
+    if hermes_id:
+        headers = {"Authorization": f"Bearer {_API_KEY}"}
         try:
-            reminders = json.loads(_REMINDERS_FILE.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, Exception):
-            reminders = []
+            async with aiohttp.ClientSession(headers=headers) as session:
+                await session.delete(f"{_GATEWAY_URL}/api/sessions/{hermes_id}")
+        except Exception:
+            pass  # Best effort cleanup
 
-    new_id = 1
-    if reminders:
-        new_id = max(r.get("id", 0) for r in reminders) + 1
-
-    reminder = {
-        "id": new_id,
-        "text": data["text"],
-        "datetime": data["datetime"],
-        "project": data.get("project", "general"),
-        "completed": False,
-        "created": datetime.now(timezone.utc).isoformat(),
-    }
-    reminders.append(reminder)
-    _REMINDERS_FILE.write_text(json.dumps(reminders, indent=2, ensure_ascii=False), encoding="utf-8")
-    return reminder
-
-
-async def _create_reminder_entry(reminder_data: dict) -> str:
-    """Crea un recordatorio en el sistema del dashboard."""
+# ── Push notification helper ─────────────────────────────────────
+async def _send_chat_push(session_id: str, preview: str):
     try:
-        reminder = _save_reminder(reminder_data)
-        dt = reminder.get("datetime", "")
-        text = reminder.get("text", "Recordatorio")
-        return f"✅ **Recordatorio creado:** \"{text}\" para el {dt}"
-    except Exception as e:
-        return f"⚠️ Error al crear recordatorio: {str(e)}"
+        from routes.push import _load_subs, _send_push
+        subs = _load_subs()
+        if not subs:
+            return
+        title = "💬 Hermes respondió"
+        body = (preview or "")[:120]
+        if len(preview or "") > 120:
+            body += "…"
+        for sub in subs:
+            await asyncio.to_thread(
+                _send_push, sub,
+                {"title": title, "body": body, "icon": "/icon-192.png",
+                 "tag": f"hermes-chat-{session_id}", "data": {"url": "/"}}
+            )
+    except Exception:
+        pass
 
+# ── Token tracker ────────────────────────────────────────────────
+_SCRIPTS_DIR = Path.home() / ".hermes" / "scripts"
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+try:
+    from token_tracker import log_usage as _log_usage
+    _HAS_TRACKER = True
+except ImportError:
+    _HAS_TRACKER = False
 
-# ── Cliente OpenAI (compartido) ─────────────────────────────────────────
-_client = None
-
-
-def _get_client() -> AsyncOpenAI:
-    global _client
-    if _client is None:
-        if not _API_KEY:
-            raise RuntimeError("API_SERVER_KEY no configurada en .hermes/.env")
-        _client = AsyncOpenAI(api_key=_API_KEY, base_url=_BASE_URL)
-    return _client
-
-
-# ── Historial por conexión (en prod usar Redis) ─────────────────────────
-_histories: dict[str, list[dict]] = {}  # ws id -> messages
-_history_lock = asyncio.Lock()
-
-
-async def _get_history(session_id: str) -> list[dict]:
-    async with _history_lock:
-        if session_id not in _histories:
-            # El gateway usa su propio system prompt del agente Hermes
-            _histories[session_id] = []
-        return _histories[session_id]
-
-
-async def _add_to_history(session_id: str, msg: dict) -> None:
-    async with _history_lock:
-        _histories.setdefault(session_id, []).append(msg)
-
-
-# ── Filtro de thinking para deepseek ────────────────────────────────
-def _strip_thinking(text: str) -> str:
-    """Elimina solo reasoning interno del modelo, sin tocar la respuesta real.
-
-    deepseek-v4-flash devuelve reasoning_content en campo separado,
-    pero a veces deja residuos al inicio del content. Esta funcion
-    solo elimina bloques extensos de auto-dialogo al PRINCIPIO del texto.
-    """
-    if not text or len(text) < 120:
-        return text
-
-    lines = text.replace("\r", "").split("\n")
-
-    # Buscar la primera linea que sea claramente parte de la respuesta real
-    strong_markers = [
-        "i think", "i should", "i need", "let me",
-        "the user", "just thinking", "i'll answer",
-        "output debe ser", "debo responder",
-        "el usuario pregunt", "la instruccion",
-        "el asistente debe", "as an ai",
-    ]
-    first_real = None
-    for i, line in enumerate(lines):
-        s = line.strip()
-        if not s:
-            continue
-        lower = s.lower()
-        is_thinking = any(m in lower for m in strong_markers)
-        if not is_thinking and len(s) > 15:
-            first_real = i
-            break
-
-    if first_real and first_real > 0:
-        reasoning_len = sum(len(lines[j]) for j in range(first_real))
-        total_len = len(text)
-        # Solo cortar si el reasoning es mas del 30% del texto total
-        if reasoning_len / total_len > 0.3:
-            return "\n".join(lines[first_real:]).strip()
-
-    return text
-
-
-# ── WebSocket endpoint ──────────────────────────────────────────────────
+# ── WebSocket endpoint ───────────────────────────────────────────
 
 @router.websocket("/api/chat")
 async def chat_websocket(ws: WebSocket, session_id: str = Query("")):
     await ws.accept()
 
-    # ── Session resolution ──────────────────────────────────────────
+    # ── Session resolution ──────────────────────────────────────
     created_new_session = False
     if not session_id:
-        # Create a new session
-        import uuid
         now = datetime.now(timezone.utc).isoformat()
         session_id = str(uuid.uuid4())
         created_new_session = True
@@ -397,7 +133,6 @@ async def chat_websocket(ws: WebSocket, session_id: str = Query("")):
         finally:
             db.close()
     else:
-        # Verify session exists in DB, create if missing
         db = _get_db()
         try:
             exists = db.execute("SELECT 1 FROM sessions WHERE id = ?", (session_id,)).fetchone()
@@ -411,22 +146,19 @@ async def chat_websocket(ws: WebSocket, session_id: str = Query("")):
         finally:
             db.close()
 
-    # Load existing history from DB
-    db = _get_db()
+    # Get or create Hermes gateway session
     try:
-        rows = db.execute(
-            "SELECT role, content FROM messages WHERE session_id = ? ORDER BY id ASC",
-            (session_id,),
-        ).fetchall()
-        initial_history = [{"role": r["role"], "content": r["content"]} for r in rows]
-    finally:
-        db.close()
+        hermes_session_id = await _get_or_create_hermes_session(session_id)
+    except Exception as e:
+        await ws.send_json({
+            "type": "error",
+            "content": f"⚠️ Error conectando al agente Hermes: {str(e)}",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+        await ws.close()
+        return
 
-    # Replace the old in-memory history with persisted data
-    async with _history_lock:
-        _histories[session_id] = initial_history
-
-    # Notify client of the session_id (especially important for new sessions)
+    # Notify client of session_id
     if created_new_session:
         await ws.send_json({
             "type": "session_created",
@@ -440,114 +172,76 @@ async def chat_websocket(ws: WebSocket, session_id: str = Query("")):
         while True:
             await asyncio.sleep(30)
             try:
-                await ws.send_json({"type": "heartbeat", "timestamp": datetime.now(timezone.utc).isoformat()})
+                await ws.send_json({
+                    "type": "heartbeat",
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                })
             except Exception:
                 break
 
-    async def llm_stream(session_id: str, user_msg: str):
-        """Envía mensaje al LLM y stremea la respuesta por WebSocket."""
-        client = _get_client()
-        history = await _get_history(session_id)
-
-        history.append({"role": "user", "content": user_msg})
-        append_message(session_id, "user", user_msg)
-
-        # Auto-title on first user message
-        msg_count = sum(1 for m in history if m["role"] == "user")
-        if msg_count == 1:
-            try:
-                auto_title_session(session_id)
-            except Exception:
-                pass
+    async def stream_to_hermes(user_msg: str, history: list[dict]):
+        """Send user message to Hermes gateway session chat and stream response back."""
+        headers = {"Authorization": f"Bearer {_API_KEY}"}
+        body = {"message": user_msg}
 
         try:
-            stream = await client.chat.completions.create(
-                model=_MODEL,
-                messages=history,
-                stream=True,
-                temperature=0.7,
-                max_tokens=4096,
-            )
+            async with aiohttp.ClientSession(headers=headers) as http_session:
+                async with http_session.post(
+                    f"{_GATEWAY_URL}/api/sessions/{hermes_session_id}/chat/stream",
+                    json=body,
+                ) as resp:
+                    if resp.status != 200:
+                        error_text = await resp.text()
+                        await ws.send_json({
+                            "type": "error",
+                            "content": f"⚠️ Error del gateway: HTTP {resp.status}",
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        })
+                        return
 
-            full_content = ""
-            chunk = None
-            async for chunk in stream:
-                delta = chunk.choices[0].delta if chunk.choices else None
-                if delta is None:
-                    continue
-                content = delta.content or getattr(delta, "reasoning_content", None) or ""
-                if content:
-                    full_content += content
-                    await ws.send_json({
-                        "type": "chunk",
-                        "content": content,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    })
+                    full_content = ""
+                    tool_active = False
 
-            # Limpiar thinking del deepseek
-            clean = _strip_thinking(full_content) if full_content else ""
+                    # Process SSE stream
+                    async for line in resp.content:
+                        decoded = line.decode("utf-8", errors="replace").strip()
+                        if not decoded:
+                            continue
+                        if decoded.startswith(":"):
+                            continue  # comment/keepalive
 
-            if clean != full_content and clean:
-                await ws.send_json({
-                    "type": "thinking_removed",
-                    "content": clean,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                })
+                        if decoded.startswith("event: "):
+                            event_type = decoded[7:].strip()
+                            # Next line should be data:
+                            continue
 
-            final_content = clean or full_content
-            await ws.send_json({
-                "type": "done",
-                "content": final_content,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
+                        if decoded.startswith("data: "):
+                            data_str = decoded[6:].strip()
+                            try:
+                                data = json.loads(data_str)
+                            except json.JSONDecodeError:
+                                continue
 
-            history.append({"role": "assistant", "content": final_content})
+                            event_type_local = getattr(line, "_event_type", None)
 
-            # Save assistant message to DB
-            try:
-                append_message(session_id, "assistant", final_content)
-            except Exception:
-                pass
+                            # We need the event name from the previous line
+                            # Re-parse since SSE lines come as separate reads
+                            continue
 
-            # Send push notification
-            await _send_chat_push(session_id, final_content)
-
-            # Token tracking
-            if _HAS_TRACKER:
-                try:
-                    last_usage = getattr(chunk, "usage", None) if chunk else None
-                    prompt_text = " ".join(
-                        m.get("content", "") or ""
-                        for m in history[:-1]
-                        if isinstance(m.get("content"), str)
-                    )
-                    estimated_prompt = len(prompt_text) // 4
-                    estimated_completion = len(full_content) // 4
-
-                    _log_usage(
-                        model=_MODEL,
-                        prompt_tokens=getattr(last_usage, "prompt_tokens", 0) or estimated_prompt,
-                        completion_tokens=getattr(last_usage, "completion_tokens", 0) or estimated_completion,
-                        total_tokens=getattr(last_usage, "total_tokens", 0) or (estimated_prompt + estimated_completion),
-                        cached_tokens=0,
-                        project="hermes-dash",
-                        category="chat-ws",
-                    )
-                except Exception:
-                    pass
-
+                    # Can't easily parse SSE with async for line because
+                    # event and data are on separate lines.
+                    # Let me use a different approach.
         except Exception as e:
-            error_msg = f"⚠️ Error al contactar al LLM: {str(e)}"
             await ws.send_json({
                 "type": "error",
-                "content": error_msg,
+                "content": f"⚠️ Error de conexión con el gateway: {str(e)}",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
-            history.append({"role": "assistant", "content": error_msg})
 
-    # ── Iniciar heartbeat ──────────────────────────────────────────────
+    # ── Start heartbeat ──
     hb_task = asyncio.create_task(heartbeat())
 
+    # ── Message loop ──
     try:
         while True:
             data = await ws.receive_text()
@@ -561,8 +255,13 @@ async def chat_websocket(ws: WebSocket, session_id: str = Query("")):
             msg_type = msg.get("type", "message")
 
             if msg_type == "clear":
-                async with _history_lock:
-                    _histories[session_id] = []
+                # Clear dashboard session history
+                db = _get_db()
+                try:
+                    db.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
+                    db.commit()
+                finally:
+                    db.close()
                 await ws.send_json({
                     "type": "cleared",
                     "content": "🧹 Historial limpiado",
@@ -573,72 +272,39 @@ async def chat_websocket(ws: WebSocket, session_id: str = Query("")):
             if not content:
                 continue
 
-            # ── Detectar intent de recordatorio (prioritario) ────────────
-            if _is_reminder_intent(content):
-                await ws.send_json({
-                    "type": "chunk",
-                    "content": "⏰ Procesando recordatorio...",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                })
+            # Save user message to dashboard DB
+            append_message(session_id, "user", content)
 
-                reminder_data = await _parse_reminder_with_llm(content)
+            # Auto-title on first user message
+            db = _get_db()
+            try:
+                count = db.execute(
+                    "SELECT COUNT(*) as c FROM messages WHERE session_id = ? AND role = 'user'",
+                    (session_id,)
+                ).fetchone()["c"]
+            finally:
+                db.close()
+            if count == 1:
+                try:
+                    auto_title_session(session_id)
+                except Exception:
+                    pass
 
-                if reminder_data and "text" in reminder_data and "datetime" in reminder_data:
-                    result_msg = await _create_reminder_entry(reminder_data)
-                    await ws.send_json({
-                        "type": "done",
-                        "content": result_msg,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    })
-                    # Persist to DB and history
-                    append_message(session_id, "user", content)
-                    append_message(session_id, "assistant", result_msg)
-                    async with _history_lock:
-                        _histories.setdefault(session_id, []).append(
-                            {"role": "user", "content": content}
-                        )
-                        _histories[session_id].append(
-                            {"role": "assistant", "content": result_msg}
-                        )
-                else:
-                    await llm_stream(session_id, content)
+            # Auto-title on first user message (using dashboard history)
+            try:
+                db2 = _get_db()
+                msg_count = db2.execute(
+                    "SELECT COUNT(*) as c FROM messages WHERE session_id = ? AND role = 'user'",
+                    (session_id,)
+                ).fetchone()["c"]
+                db2.close()
+                if msg_count == 1:
+                    auto_title_session(session_id)
+            except Exception:
+                pass
 
-            # ── Detectar intent de calendario ──────────────────────────
-            elif _is_calendar_intent(content):
-                # Avisar que estamos procesando
-                await ws.send_json({
-                    "type": "chunk",
-                    "content": "📅 Procesando solicitud de calendario...",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                })
-
-                event_data = await _parse_event_with_llm(content)
-
-                if event_data and "title" in event_data and "start" in event_data:
-                    result_msg = await _create_calendar_event(event_data)
-
-                    await ws.send_json({
-                        "type": "done",
-                        "content": result_msg,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    })
-
-                    # Persist to DB and history
-                    append_message(session_id, "user", content)
-                    append_message(session_id, "assistant", result_msg)
-                    async with _history_lock:
-                        _histories.setdefault(session_id, []).append(
-                            {"role": "user", "content": content}
-                        )
-                        _histories[session_id].append(
-                            {"role": "assistant", "content": result_msg}
-                        )
-                else:
-                    # No se pudo parsear, cae al LLM normal
-                    await llm_stream(session_id, content)
-            else:
-                # Llamar al LLM con streaming normal
-                await llm_stream(session_id, content)
+            # Call Hermes gateway and stream response
+            await _stream_hermes_chat(ws, hermes_session_id, content, session_id)
 
     except WebSocketDisconnect:
         pass
@@ -651,5 +317,183 @@ async def chat_websocket(ws: WebSocket, session_id: str = Query("")):
                 await hb_task
             except asyncio.CancelledError:
                 pass
-        async with _history_lock:
-            _histories.pop(session_id, None)
+
+
+async def _stream_hermes_chat(
+    ws: WebSocket,
+    hermes_session_id: str,
+    user_message: str,
+    dashboard_session_id: str,
+) -> None:
+    """Send message to Hermes gateway session chat stream and forward SSE events to WebSocket."""
+    headers = {"Authorization": f"Bearer {_API_KEY}"}
+    body = {"message": user_message}
+
+    try:
+        async with aiohttp.ClientSession(headers=headers) as http_session:
+            async with http_session.post(
+                f"{_GATEWAY_URL}/api/sessions/{hermes_session_id}/chat/stream",
+                json=body,
+            ) as resp:
+                if resp.status != 200:
+                    try:
+                        error_text = await resp.text()
+                    except Exception:
+                        error_text = ""
+                    await ws.send_json({
+                        "type": "error",
+                        "content": f"⚠️ Error del gateway: HTTP {resp.status} {error_text[:200]}",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+                    return
+
+                full_content = ""
+                buf = ""
+
+                # Read SSE stream byte by byte / line by line
+                # Each SSE event looks like:
+                # event: assistant.delta\n
+                # data: {...}\n\n
+                async for raw_line in resp.content:
+                    line = raw_line.decode("utf-8", errors="replace").strip()
+                    if not line:
+                        continue
+                    if line.startswith(":"):
+                        continue  # comment / keepalive
+
+                    if line.startswith("event: "):
+                        # Store event type for the next data line
+                        buf = line[7:].strip()
+                        continue
+
+                    if line.startswith("data: "):
+                        data_str = line[6:].strip()
+                        event_type = buf
+                        buf = ""
+
+                        try:
+                            data = json.loads(data_str)
+                        except json.JSONDecodeError:
+                            continue
+
+                        now_ts = datetime.now(timezone.utc).isoformat()
+
+                        if event_type == "assistant.delta":
+                            delta = data.get("delta", "")
+                            if delta:
+                                full_content += delta
+                                await ws.send_json({
+                                    "type": "chunk",
+                                    "content": delta,
+                                    "timestamp": now_ts,
+                                })
+
+                        elif event_type == "tool.progress":
+                            preview = data.get("delta", data.get("preview", ""))
+                            if preview:
+                                await ws.send_json({
+                                    "type": "chunk",
+                                    "content": preview,
+                                    "timestamp": now_ts,
+                                })
+
+                        elif event_type == "tool.started":
+                            tool_name = data.get("tool_name", "")
+                            preview = data.get("preview", "")
+                            msg = f"🔧 Usando {tool_name}..."
+                            if preview:
+                                msg += f" ({preview})"
+                            await ws.send_json({
+                                "type": "chunk",
+                                "content": msg,
+                                "timestamp": now_ts,
+                            })
+
+                        elif event_type == "tool.completed":
+                            tool_name = data.get("tool_name", "")
+                            preview = data.get("preview", "")
+                            msg = f"✅ {tool_name} completado"
+                            if preview:
+                                msg += f" — {preview}"
+                            await ws.send_json({
+                                "type": "chunk",
+                                "content": msg,
+                                "timestamp": now_ts,
+                            })
+
+                        elif event_type == "tool.failed":
+                            tool_name = data.get("tool_name", "")
+                            error_msg = data.get("error", "")
+                            msg = f"❌ {tool_name} falló: {error_msg}"
+                            await ws.send_json({
+                                "type": "chunk",
+                                "content": msg,
+                                "timestamp": now_ts,
+                            })
+
+                        elif event_type == "assistant.completed":
+                            final = data.get("content", full_content)
+                            if final and final != full_content:
+                                # Send any remaining delta
+                                remaining = final[len(full_content):]
+                                if remaining:
+                                    await ws.send_json({
+                                        "type": "chunk",
+                                        "content": remaining,
+                                        "timestamp": now_ts,
+                                    })
+                                    full_content = final
+                            await ws.send_json({
+                                "type": "done",
+                                "content": final or full_content,
+                                "timestamp": now_ts,
+                            })
+
+                        elif event_type == "run.completed":
+                            # Save assistant message to dashboard DB + send push
+                            final_msg = full_content
+                            if final_msg:
+                                try:
+                                    append_message(dashboard_session_id, "assistant", final_msg)
+                                except Exception:
+                                    pass
+                                await _send_chat_push(dashboard_session_id, final_msg)
+
+                            # Track tokens if available
+                            usage = data.get("usage")
+                            if usage and _HAS_TRACKER:
+                                try:
+                                    _log_usage(
+                                        model="hermes-agent",
+                                        prompt_tokens=usage.get("prompt_tokens", 0),
+                                        completion_tokens=usage.get("completion_tokens", 0),
+                                        total_tokens=usage.get("total_tokens", 0),
+                                        cached_tokens=usage.get("cached_tokens", 0),
+                                        project="hermes-dash",
+                                        category="chat-ws",
+                                    )
+                                except Exception:
+                                    pass
+
+                        elif event_type == "error":
+                            error_msg = data.get("message", "Error desconocido del gateway")
+                            await ws.send_json({
+                                "type": "error",
+                                "content": f"⚠️ {error_msg}",
+                                "timestamp": now_ts,
+                            })
+
+                        # Ignore: run.started, message.started, done
+
+    except aiohttp.ClientError as e:
+        await ws.send_json({
+            "type": "error",
+            "content": f"⚠️ No se pudo conectar con el agente Hermes: {str(e)}",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception as e:
+        await ws.send_json({
+            "type": "error",
+            "content": f"⚠️ Error inesperado: {str(e)}",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
