@@ -41,8 +41,10 @@ interface SpeechRecognitionAlternative {
 }
 type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
 
+type VoiceMode = 'tap' | 'auto';
+
 interface VoiceButtonProps {
-  /** Se llama UNA vez con la frase completa cuando el usuario cierra el micro. */
+  /** Se llama con la frase completa (en 'tap' al cerrar; en 'auto' tras un silencio). */
   onResult: (text: string) => void;
   /** Cuando true (Hermès respondiendo), el micro se apaga y se bloquea. */
   disabled?: boolean;
@@ -50,6 +52,8 @@ interface VoiceButtonProps {
 }
 
 const MIN_LENGTH = 2;
+const SILENCE_MS = 2500; // 'auto': tras este silencio sin hablar, envía
+
 function isNoise(text: string): boolean {
   const t = text.trim();
   if (t.length < MIN_LENGTH) return true;
@@ -61,14 +65,38 @@ export default function VoiceButton({ onResult, disabled = false, onActiveChange
   const [listening, setListening] = useState(false);
   const [supported, setSupported] = useState(true);
   const [interimText, setInterimText] = useState('');
+  const [mode, setMode] = useState<VoiceMode>('tap');
 
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const listeningRef = useRef(false);
-  const finalBufferRef = useRef('');     // transcripción acumulada de este turno
-  const stopRequestedRef = useRef(false); // el usuario tocó para enviar
+  const finalBufferRef = useRef('');       // transcripción acumulada
+  const stopRequestedRef = useRef(false);  // el usuario tocó para cerrar
+  const wantListeningRef = useRef(false);   // intención de seguir escuchando ('auto')
   const disabledRef = useRef(disabled);
+  const modeRef = useRef<VoiceMode>('tap');
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { disabledRef.current = disabled; }, [disabled]);
+  useEffect(() => { modeRef.current = mode; }, [mode]);
+
+  // cargar modo guardado
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('hermes_voice_mode');
+      if (saved === 'auto' || saved === 'tap') setMode(saved);
+    } catch { /* ignore */ }
+  }, []);
+
+  const clearSilence = () => {
+    if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null; }
+  };
+
+  // Envía lo acumulado (si vale) — usado por 'auto' (silencio) y 'tap' (cierre)
+  const flushBuffer = useCallback(() => {
+    const text = finalBufferRef.current.trim();
+    finalBufferRef.current = '';
+    if (text && !isNoise(text)) onResult(text);
+  }, [onResult]);
 
   // ── Inicializar SpeechRecognition una sola vez ──
   useEffect(() => {
@@ -80,7 +108,7 @@ export default function VoiceButton({ onResult, disabled = false, onActiveChange
     const rec = new (Ctor as SpeechRecognitionConstructor)();
     rec.lang = 'es-CL';
     rec.interimResults = true;
-    rec.continuous = true;   // sigue escuchando entre pausas hasta que el usuario cierre
+    rec.continuous = true;
     rec.maxAlternatives = 1;
 
     rec.onstart = () => {
@@ -91,92 +119,138 @@ export default function VoiceButton({ onResult, disabled = false, onActiveChange
 
     rec.onresult = (event: SpeechRecognitionEvent) => {
       let interim = '';
+      let gotFinal = false;
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
           finalBufferRef.current += transcript + ' ';
+          gotFinal = true;
         } else {
           interim += transcript;
         }
       }
       setInterimText(interim);
+
+      // 'auto': cada vez que hay voz, reinicia el reloj de silencio
+      if (modeRef.current === 'auto' && (gotFinal || interim)) {
+        clearSilence();
+        silenceTimerRef.current = setTimeout(() => {
+          // silencio tras hablar → enviar, pero seguir escuchando
+          flushBuffer();
+          setInterimText('');
+        }, SILENCE_MS);
+      }
     };
 
     rec.onerror = (event: SpeechRecognitionErrorEvent) => {
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         setSupported(false);
       }
-      // 'no-speech' / 'aborted' → se maneja en onend
     };
 
-    const finishAndSend = () => {
+    const stopFully = () => {
+      clearSilence();
       listeningRef.current = false;
+      wantListeningRef.current = false;
       setListening(false);
       setInterimText('');
       onActiveChange?.(false);
-      const text = finalBufferRef.current.trim();
-      finalBufferRef.current = '';
-      stopRequestedRef.current = false;
-      if (text && !isNoise(text)) onResult(text);
     };
 
     rec.onend = () => {
-      // Si el usuario cerró (o quedó bloqueado por respuesta) → enviar la frase completa.
+      // Cierre intencional (tap) o bloqueo por respuesta → enviar lo que quede y parar
       if (stopRequestedRef.current || disabledRef.current) {
-        finishAndSend();
+        stopRequestedRef.current = false;
+        const wasDisabled = disabledRef.current;
+        clearSilence();
+        listeningRef.current = false;
+        setListening(false);
+        setInterimText('');
+        onActiveChange?.(false);
+        flushBuffer();
+        // en 'auto', si solo fue pausa por respuesta, recordamos la intención
+        if (!wasDisabled) wantListeningRef.current = false;
         return;
       }
-      // El navegador cortó solo (pausa larga) pero el usuario sigue en modo escucha →
-      // reanudar SIN enviar, conservando lo acumulado.
+      // El navegador cortó solo pero seguimos en modo escucha → reanudar sin enviar
       try {
         rec.start();
       } catch {
-        finishAndSend();
+        stopFully();
       }
     };
 
     recognitionRef.current = rec;
     return () => {
+      clearSilence();
       try { rec.abort(); } catch { /* ignore */ }
       recognitionRef.current = null;
     };
-  }, [onResult, onActiveChange]);
+  }, [flushBuffer, onActiveChange]);
 
-  // ── Si Hermès empieza a responder mientras el micro está abierto → cerrar ──
+  // ── Pausar al responder Hermès; reanudar después si estaba en 'auto' ──
   useEffect(() => {
     if (disabled && listeningRef.current) {
       stopRequestedRef.current = true;
       try { recognitionRef.current?.stop(); } catch { /* ignore */ }
+    } else if (!disabled && modeRef.current === 'auto' && wantListeningRef.current && !listeningRef.current) {
+      // Hermès terminó → reanudar escucha en modo conversación
+      finalBufferRef.current = '';
+      try { recognitionRef.current?.start(); } catch { /* ignore */ }
     }
   }, [disabled]);
 
-  // ── Tap para hablar / tap para enviar ──
+  // ── Tap ──
   const toggle = useCallback(() => {
     if (!recognitionRef.current || disabled) return;
     if (listeningRef.current) {
-      stopRequestedRef.current = true;     // tap → enviar
+      stopRequestedRef.current = true;
+      wantListeningRef.current = false;
       try { recognitionRef.current.stop(); } catch { /* ignore */ }
     } else {
       finalBufferRef.current = '';
       stopRequestedRef.current = false;
+      wantListeningRef.current = true;
       try { recognitionRef.current.start(); } catch { /* ya corriendo */ }
     }
   }, [disabled]);
+
+  const switchMode = useCallback(() => {
+    setMode((m) => {
+      const next: VoiceMode = m === 'tap' ? 'auto' : 'tap';
+      try { localStorage.setItem('hermes_voice_mode', next); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
 
   if (!supported) return null;
 
   return (
     <div className="flex items-center gap-2">
       {interimText && listening && (
-        <span className="text-[10px] text-[var(--cyan)]/70 italic max-w-[150px] truncate transition-opacity">
+        <span className="text-[10px] text-[var(--cyan)]/70 italic max-w-[140px] truncate transition-opacity">
           {interimText}
         </span>
       )}
 
+      {/* Switch de modo TAP / AUTO (para probar ambos) */}
+      <button
+        onClick={switchMode}
+        title={mode === 'tap' ? 'Modo: tocar para hablar/enviar' : 'Modo: manos libres (envía tras silencio)'}
+        className={classNames(
+          'hud-label text-[8px] px-1.5 py-0.5 rounded border transition-all',
+          mode === 'auto'
+            ? 'border-[var(--cyan)]/40 text-[var(--cyan)]'
+            : 'border-[var(--hairline)] text-[var(--text-faint)] hover:text-[var(--text-muted)]'
+        )}
+      >
+        {mode === 'auto' ? 'AUTO' : 'TAP'}
+      </button>
+
       <button
         onClick={toggle}
         disabled={disabled}
-        title={disabled ? 'Hermès respondiendo…' : listening ? 'Tocar para enviar' : 'Tocar para hablar'}
+        title={disabled ? 'Hermès respondiendo…' : listening ? (mode === 'auto' ? 'Escuchando — toca para parar' : 'Tocar para enviar') : 'Tocar para hablar'}
         className={classNames(
           'p-2 rounded-xl transition-all duration-200',
           disabled
