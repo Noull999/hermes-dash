@@ -14,6 +14,7 @@ import ActiveJobs from '@/components/dashboard/ActiveJobs';
 import RecentRepos from '@/components/dashboard/RecentRepos';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
 import QuickChat from '@/components/dashboard/QuickChat';
+import WeatherWidget from '@/components/dashboard/WeatherWidget';
 import { getTimeOfDay } from '@/lib/utils';
 import { Sparkles, Wifi, WifiOff } from 'lucide-react';
 
@@ -84,13 +85,17 @@ export default function DashboardPage() {
 
       {/* ── Bento Grid Dashboard ── */}
       <div className="bento-grid px-4 pb-24">
-        {/* ── Row 1: Monitor + Tokens ── */}
+        {/* ── Row 1: Monitor + Tokens + Clima ── */}
         <BentoCard colSpan={2} title="MONITOR DE SERVICIOS">
           <ServiceMonitor />
         </BentoCard>
 
-        <BentoCard colSpan={2} title="TOKENS">
+        <BentoCard colSpan={1} title="TOKENS">
           <TokenBudget />
+        </BentoCard>
+
+        <BentoCard colSpan={1} title="CLIMA">
+          <WeatherWidget />
         </BentoCard>
 
         {/* ── Row 2: System + ActiveJobs ── */}
