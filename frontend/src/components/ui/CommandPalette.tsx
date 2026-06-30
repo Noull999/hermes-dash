@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useChatStore } from '@/store/useChatStore';
 import { useSearchStore } from '@/store/useSearchStore';
+import { useMemoryStore } from '@/store/useMemoryStore';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface Command {
@@ -103,6 +104,14 @@ function useCommands() {
       icon: Search,
       section: 'Acciones',
       action: () => { useSearchStore.getState().setOpen(true); },
+    },
+    {
+      id: 'open-memory',
+      label: 'Abrir Memoria Activa',
+      keywords: ['memoria', 'memory', 'contexto', 'proyectos', 'tareas', 'preferencias'],
+      icon: Brain,
+      section: 'Acciones',
+      action: () => { useMemoryStore.getState().setOpen(true); },
     },
     {
       id: 'toggle-voice',

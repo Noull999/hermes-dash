@@ -9,6 +9,7 @@ import InputBox from '@/components/chat/InputBox';
 import VoiceButton from '@/components/chat/VoiceButton';
 import SessionsPanel from '@/components/chat/SessionsPanel';
 import { useChatStore } from '@/store/useChatStore';
+import { useMemoryStore } from '@/store/useMemoryStore';
 import { useHermesStore } from '@/store/useHermesStore';
 import { getTimeOfDay, classNames } from '@/lib/utils';
 import DebugPanel from '@/components/DebugPanel';
@@ -181,6 +182,14 @@ export default function HomePage() {
           >
             <Search size={12} />
             <span className="hidden sm:inline hud-label text-[9px]">CMD+K</span>
+          </button>
+          {/* Memory panel toggle */}
+          <button
+            onClick={() => useMemoryStore.getState().setOpen(true)}
+            className="flex items-center gap-1.5 px-2 py-1 border border-[var(--hairline)] rounded text-[var(--text-faint)] hover:text-[var(--text-muted)] transition-all"
+            title="Memoria Activa"
+          >
+            <Brain size={12} />
           </button>
           <SessionsPanel
             currentSessionId={currentSessionId}
