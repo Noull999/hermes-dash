@@ -4,8 +4,10 @@ type MessageHandler = (data: unknown) => void;
 type StatusHandler = (status: 'connected' | 'disconnected' | 'reconnecting' | 'timeout') => void;
 
 function getWsUrl(): string {
-  // VPS direct — el frontend corre en Vercel, el backend en el VPS
-  return 'ws://95.217.7.149:8080/api/chat';
+  if (typeof window === 'undefined') return 'ws://localhost:8080/api/chat';
+  // Same-origin — Vercel rewrite proxy conecta wss:// al VPS
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${proto}//${window.location.host}/api/chat`;
 }
 
 const WS_BASE = getWsUrl();
