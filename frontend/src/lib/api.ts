@@ -381,3 +381,29 @@ export interface MonitorData {
 export async function getMonitor() {
   return request<MonitorData>('/api/monitor');
 }
+
+// ── Monitor Actions ───────────────────────────────────────────────────
+export interface MonitorAction {
+  id: string;
+  label: string;
+  description: string;
+}
+
+export interface ActionResult {
+  success: boolean;
+  action: string;
+  label: string;
+  message?: string;
+  error?: string;
+  elapsed_ms?: number;
+}
+
+export async function getMonitorActions() {
+  return request<{ actions: MonitorAction[] }>('/api/monitor/actions');
+}
+
+export async function runMonitorAction(actionId: string) {
+  return request<ActionResult>(`/api/monitor/action/${actionId}`, {
+    method: 'POST',
+  });
+}

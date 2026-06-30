@@ -13,6 +13,7 @@ import json
 import os
 import socket
 import ssl
+import subprocess
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,6 +27,30 @@ router = APIRouter(tags=["monitor"])
 _HERMES_ENV = Path.home() / ".hermes" / ".env"
 _TUNNEL_STATE = Path("/run/hermes-tunnel.url")
 _GOOGLE_TOKEN = Path.home() / ".hermes" / "google_token.json"
+_HERMES_SCRIPTS = Path.home() / "hermes-dash" / "scripts"
+
+# Actions configuration
+_ACTIONS = {
+    "restart_tunnel": {
+        "label": "Reiniciar Tunnel",
+        "cmd": ["systemctl", "restart", "cloudflared-hermes.service"],
+        "description": "Reinicia cloudflared para refrescar el tunnel",
+        "fire_and_forget": False,
+    },
+    "restart_backend": {
+        "label": "Reiniciar Backend",
+        "cmd": ["systemctl", "restart", "hermes-api.service"],
+        "description": "Reinicia el backend FastAPI del dashboard",
+        "fire_and_forget": True,
+    },
+    "redeploy_vercel": {
+        "label": "Redeploy Vercel",
+        "cmd": ["curl", "-s", "-X", "POST"],
+        "description": "Dispara redeploy del frontend en Vercel",
+        "needs_env": "DEPLOY_HOOK",
+        "fire_and_forget": False,
+    },
+}
 
 
 def _load_env() -> dict:
@@ -255,3 +280,82 @@ async def get_monitor(_token: str = Depends(verify_token)):
         "checked_at": datetime.now(timezone.utc).isoformat(),
         "total": len(results),
     }
+
+
+# ── Actions ────────────────────────────────────────────────────────────
+
+@router.get("/api/monitor/actions")
+async def list_actions(_token: str = Depends(verify_token)):
+    """Lista las acciones disponibles con sus descripciones."""
+    return {
+        "actions": [
+            {"id": k, "label": v["label"], "description": v["description"]}
+            for k, v in _ACTIONS.items()
+        ]
+    }
+
+
+@router.post("/api/monitor/action/{action_id}")
+async def run_action(action_id: str, _token: str = Depends(verify_token)):
+    """Ejecuta una accion (restart_tunnel, restart_backend, redeploy_vercel)."""
+    if action_id not in _ACTIONS:
+        return {"success": False, "error": f"Accion desconocida: {action_id}"}
+
+    action = _ACTIONS[action_id]
+    start = time.monotonic()
+
+    try:
+        cmd = list(action["cmd"])
+
+        # If action needs an env var as argument
+        if "needs_env" in action:
+            env = _load_env()
+            hook = env.get(action["needs_env"])
+            if not hook:
+                return {
+                    "success": False,
+                    "error": f"Variable {action['needs_env']} no configurada en .hermes/.env",
+                }
+            cmd.append(hook)
+
+        # Fire-and-forget: actions that kill the current process (restart_backend)
+        if action.get("fire_and_forget"):
+            subprocess.Popen(cmd)
+            return {
+                "success": True,
+                "action": action_id,
+                "label": action["label"],
+                "message": f"{action['label']} disparado — el monitor se actualizará en breve",
+            }
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        elapsed = round((time.monotonic() - start) * 1000)
+
+        if result.returncode == 0:
+            return {
+                "success": True,
+                "action": action_id,
+                "label": action["label"],
+                "message": f"{action['label']} ejecutado en {elapsed}ms",
+                "elapsed_ms": elapsed,
+            }
+        else:
+            return {
+                "success": False,
+                "action": action_id,
+                "error": result.stderr[:200] or f"Exit code {result.returncode}",
+                "elapsed_ms": elapsed,
+            }
+
+    except subprocess.TimeoutExpired:
+        return {
+            "success": False,
+            "action": action_id,
+            "error": "Comando timeout (30s)",
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "action": action_id,
+            "error": str(e)[:200],
+        }

@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { getMonitor, MonitorData } from '@/lib/api';
-import { Wifi, WifiOff, AlertTriangle, Clock, RefreshCw, ExternalLink } from 'lucide-react';
+import { getMonitor, runMonitorAction, MonitorData, MonitorAction } from '@/lib/api';
+import { Wifi, WifiOff, AlertTriangle, Clock, RefreshCw, Play, CheckCircle, XCircle } from 'lucide-react';
 
 const STATUS_COLORS: Record<string, string> = {
   up: 'var(--success)',
@@ -18,18 +18,34 @@ const STATUS_LABELS: Record<string, string> = {
   unknown: '?',
 };
 
-const ACTION_HINTS: Record<string, string> = {
-  google_calendar: 'Token expirado → ejecuta "hermes google auth" en la terminal',
-  github_api: 'Si el rate limit se acaba, espera al reset',
-  vercel_frontend: 'Haz "vercel --prod" para desplegar',
-  cloudflare_tunnel: 'Revisa que cloudflared esté corriendo en el VPS',
-  ssl_certs: 'Si un cert está por vencer, renueva con Let\'s Encrypt',
+const ACTION_MAP: Record<string, string> = {
+  cloudflare_tunnel: 'restart_tunnel',
+  vps_backend: 'restart_backend',
+  vercel_frontend: 'redeploy_vercel',
 };
 
-function ServiceCard({ svc, onRefresh }: { svc: MonitorData['services'][0]; onRefresh: () => void }) {
+const ACTION_HINTS: Record<string, string> = {
+  google_calendar: 'Token expirado → ejecuta "hermes google auth" en la terminal',
+  github_api: 'Rate limit OK — espera al reset si se acaba',
+  ssl_certs: 'Si un cert está por vencer, renueva con certbot',
+};
+
+function ServiceCard({
+  svc,
+  onRefresh,
+  onAction,
+  actionRunning,
+}: {
+  svc: MonitorData['services'][0];
+  onRefresh: () => void;
+  onAction: (actionId: string) => void;
+  actionRunning: string | null;
+}) {
   const color = STATUS_COLORS[svc.status] || 'var(--text-faint)';
   const label = STATUS_LABELS[svc.status] || '?';
   const hint = svc.status !== 'up' ? ACTION_HINTS[svc.key] : null;
+  const actionId = ACTION_MAP[svc.key];
+  const isRunning = actionRunning === actionId;
 
   return (
     <div className="flex items-center gap-2 py-1.5 px-2 rounded-[2px] border border-[var(--hairline)] bg-[rgba(0,0,0,0.2)]">
@@ -71,13 +87,25 @@ function ServiceCard({ svc, onRefresh }: { svc: MonitorData['services'][0]; onRe
         )}
       </div>
       {svc.status !== 'up' && (
-        <button
-          onClick={onRefresh}
-          className="shrink-0 w-5 h-5 flex items-center justify-center rounded-[2px] border border-[var(--hairline)] hover:bg-[rgba(79,227,255,0.06)] transition-colors"
-          title="Re-check"
-        >
-          <RefreshCw size={8} className="text-[var(--text-faint)]" />
-        </button>
+        <div className="shrink-0 flex gap-1">
+          {actionId && (
+            <button
+              onClick={() => onAction(actionId)}
+              disabled={isRunning}
+              className="w-5 h-5 flex items-center justify-center rounded-[2px] border border-[var(--amber)] text-[var(--amber)] hover:bg-[rgba(255,183,77,0.1)] transition-colors disabled:opacity-40"
+              title={isRunning ? 'Ejecutando...' : 'Fix'}
+            >
+              {isRunning ? <RefreshCw size={7} className="animate-spin" /> : <Play size={7} />}
+            </button>
+          )}
+          <button
+            onClick={onRefresh}
+            className="w-5 h-5 flex items-center justify-center rounded-[2px] border border-[var(--hairline)] hover:bg-[rgba(79,227,255,0.06)] transition-colors"
+            title="Re-check"
+          >
+            <RefreshCw size={8} className="text-[var(--text-faint)]" />
+          </button>
+        </div>
       )}
     </div>
   );
@@ -87,6 +115,8 @@ export default function ServiceMonitor() {
   const [data, setData] = useState<MonitorData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionRunning, setActionRunning] = useState<string | null>(null);
+  const [actionMsg, setActionMsg] = useState<{ success: boolean; text: string } | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -99,6 +129,21 @@ export default function ServiceMonitor() {
       setLoading(false);
     }
   }, []);
+
+  const handleAction = useCallback(async (actionId: string) => {
+    setActionRunning(actionId);
+    setActionMsg(null);
+    try {
+      const result = await runMonitorAction(actionId);
+      setActionMsg({ success: result.success, text: result.message || result.error || '' });
+      // Re-check after action completes
+      setTimeout(() => fetchData(), 1500);
+    } catch (e) {
+      setActionMsg({ success: false, text: e instanceof Error ? e.message : 'Error' });
+    } finally {
+      setActionRunning(null);
+    }
+  }, [fetchData]);
 
   useEffect(() => {
     fetchData();
@@ -153,10 +198,24 @@ export default function ServiceMonitor() {
         </button>
       </div>
 
+      {/* Action result message */}
+      {actionMsg && (
+        <div
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-[2px] border text-[9px] font-mono ${
+            actionMsg.success
+              ? 'border-[rgba(93,255,176,0.2)] text-[var(--success)] bg-[rgba(93,255,176,0.04)]'
+              : 'border-[rgba(255,93,108,0.2)] text-[var(--error)] bg-[rgba(255,93,108,0.04)]'
+          }`}
+        >
+          {actionMsg.success ? <CheckCircle size={8} /> : <XCircle size={8} />}
+          <span>{actionMsg.text}</span>
+        </div>
+      )}
+
       {/* Services grid */}
       <div className="grid grid-cols-1 gap-1">
         {data.services.map((svc) => (
-          <ServiceCard key={svc.key} svc={svc} onRefresh={fetchData} />
+          <ServiceCard key={svc.key} svc={svc} onRefresh={fetchData} onAction={handleAction} actionRunning={actionRunning} />
         ))}
       </div>
     </div>
