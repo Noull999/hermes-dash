@@ -1,6 +1,6 @@
 'use client';
 
-import { User, Copy, Check } from 'lucide-react';
+import { User, Copy, Check, Mic } from 'lucide-react';
 import { useState } from 'react';
 import { ChatMessage } from '@/store/useChatStore';
 import { formatRelativeTime } from '@/lib/utils';
@@ -37,27 +37,21 @@ function CodeBlock({ code }: { code: string }) {
 }
 
 function renderContent(content: string) {
-  // Simple markdown-like rendering
   const parts = content.split(/(```[\s\S]*?```)/g);
 
   return parts.map((part, i) => {
     if (part.startsWith('```') && part.endsWith('```')) {
-      const code = part.slice(3, -3).replace(/^\w+\n/, ''); // remove language tag
+      const code = part.slice(3, -3).replace(/^\w+\n/, '');
       return <CodeBlock key={i} code={code.trim()} />;
     }
 
-    // Inline formatting
     const lines = part.split('\n');
     return (
       <div key={i}>
         {lines.map((line, j) => {
-          // Bold
           let rendered = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-          // Italic
           rendered = rendered.replace(/\*(.*?)\*/g, '<em>$1</em>');
-          // Inline code
           rendered = rendered.replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.06);padding:1px 4px;border-radius:3px;font-size:0.9em">$1</code>');
-          // Links
           rendered = rendered.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color:var(--accent);text-decoration:underline">$1</a>');
 
           if (rendered.trim() === '') return <br key={j} />;
@@ -74,15 +68,23 @@ function renderContent(content: string) {
   });
 }
 
+function estimateVoiceDuration(content: string): string {
+  const words = content.split(/\s+/).length;
+  const seconds = Math.round((words / 150) * 60); // ~150 wpm speaking
+  if (seconds < 60) return `${seconds}s`;
+  return `${Math.floor(seconds / 60)}min ${seconds % 60}s`;
+}
+
 export default function Message({ message }: MessageProps) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
+  const isVoice = message.source === 'voice';
 
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''} fade-in`}>
       {/* Avatar */}
       <div
-        className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center ${
+        className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center relative ${
           isUser
             ? 'bg-[rgba(0,212,255,0.15)] text-[var(--accent)]'
             : isSystem
@@ -90,7 +92,11 @@ export default function Message({ message }: MessageProps) {
             : 'bg-[rgba(139,92,246,0.15)] text-[var(--purple)]'
         }`}
       >
-        {isUser ? <User size={16} /> : <img src="/hermes-avatar.svg" alt="Hermes" className="w-6 h-6" />}
+        {isUser ? (
+          isVoice ? <Mic size={14} /> : <User size={16} />
+        ) : (
+          <img src="/hermes-avatar.svg" alt="Hermes" className="w-6 h-6" />
+        )}
       </div>
 
       {/* Content */}
@@ -98,11 +104,14 @@ export default function Message({ message }: MessageProps) {
         <div
           className={`rounded-2xl px-4 py-2.5 ${
             isUser
-              ? 'bg-[var(--accent)]/20 border border-[rgba(0,212,255,0.15)]'
+              ? isVoice
+                ? 'bg-[rgba(139,92,246,0.15)] border border-[rgba(139,92,246,0.2)]'
+                : 'bg-[var(--accent)]/20 border border-[rgba(0,212,255,0.15)]'
               : isSystem
               ? 'bg-[rgba(234,179,8,0.08)] border border-[rgba(234,179,8,0.1)]'
               : 'bg-[var(--card)] border border-[rgba(255,255,255,0.06)]'
           }`}
+          style={isUser && isVoice ? { borderLeft: '2px solid rgba(139,92,246,0.5)' } : undefined}
         >
           {message.loading ? (
             <div className="flex gap-1 py-1">
@@ -114,9 +123,17 @@ export default function Message({ message }: MessageProps) {
             renderContent(message.content)
           )}
         </div>
-        <span className="text-[10px] text-[var(--text-muted)] mt-1 px-1">
-          {formatRelativeTime(message.timestamp)}
-        </span>
+        <div className="flex items-center gap-2 mt-1 px-1">
+          {isVoice && (
+            <span className="flex items-center gap-1 text-[9px] text-[var(--purple)]">
+              <Mic size={9} />
+              {estimateVoiceDuration(message.content)}
+            </span>
+          )}
+          <span className="text-[10px] text-[var(--text-muted)]">
+            {formatRelativeTime(message.timestamp)}
+          </span>
+        </div>
       </div>
     </div>
   );

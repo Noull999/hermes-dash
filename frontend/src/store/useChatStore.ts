@@ -8,6 +8,7 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   loading?: boolean;
+  source?: 'text' | 'voice';
 }
 
 interface ChatState {
@@ -18,7 +19,7 @@ interface ChatState {
 
   // Actions
   addMessage: (msg: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
-  sendMessage: (content: string) => void;
+  sendMessage: (content: string, metadata?: { source?: 'text' | 'voice' }) => void;
   setTyping: (typing: boolean) => void;
   setConnected: (connected: boolean) => void;
   setConnectionStatus: (status: ChatState['connectionStatus']) => void;
@@ -50,9 +51,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((s) => ({ messages: [...s.messages, newMsg] }));
   },
 
-  sendMessage: (content) => {
+  sendMessage: (content, metadata) => {
     const { addMessage } = get();
-    addMessage({ role: 'user', content });
+    addMessage({ role: 'user', content, source: metadata?.source });
     set({ isTyping: true });
     useHermesStore.getState().setOrbState('processing', 'Procesando mensaje…');
 

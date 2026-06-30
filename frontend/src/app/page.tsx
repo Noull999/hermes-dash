@@ -96,7 +96,7 @@ export default function HomePage() {
   // Voice → auto-send (estable con useCallback)
   const handleVoiceResult = useCallback((text: string) => {
     if (text.trim()) {
-      sendMessage(text.trim());
+      sendMessage(text.trim(), { source: 'voice' });
     }
   }, [sendMessage]);
 
