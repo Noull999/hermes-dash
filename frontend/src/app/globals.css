@@ -500,6 +500,43 @@ html, body {
 }
 .boot-line { animation: bootLineIn 0.3s ease both; }
 
+/* ── Cursor spotlight (desktop only) ────────────────────────────────── */
+.cursor-glow,
+.cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 60;
+  will-change: transform;
+}
+.cursor-glow {
+  width: 460px;
+  height: 460px;
+  margin: -230px 0 0 -230px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 45, 85, 0.10), rgba(255, 45, 85, 0.04) 40%, transparent 68%);
+  mix-blend-mode: screen;
+  z-index: 4; /* detrás del contenido pero sobre el fondo */
+}
+.cursor-ring {
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border: 1px solid rgba(255, 107, 138, 0.55);
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(255, 45, 85, 0.4), inset 0 0 6px rgba(255, 45, 85, 0.25);
+}
+.cursor-ring::before,
+.cursor-ring::after {
+  content: "";
+  position: absolute;
+  background: rgba(255, 107, 138, 0.7);
+}
+/* cruz central de la retícula */
+.cursor-ring::before { top: 50%; left: -6px; right: -6px; height: 1px; transform: translateY(-50%); }
+.cursor-ring::after  { left: 50%; top: -6px; bottom: -6px; width: 1px; transform: translateX(-50%); }
+
 /* ── Dock nav magnify (Fase 0.4) ────────────────────────────────────── */
 .dock-item {
   transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);

@@ -3,6 +3,7 @@ import { Chakra_Petch, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import ClientWidgets from '@/components/ui/ClientWidgets';
 import BootSequence from '@/components/ui/BootSequence';
+import CursorGlow from '@/components/ui/CursorGlow';
 
 // Display: technical squared HUD face (JARVIS readouts)
 const display = Chakra_Petch({
@@ -60,6 +61,9 @@ export default function RootLayout({
 
         {/* Boot sequence (solo primera carga de la sesión) */}
         <BootSequence />
+
+        {/* Spotlight que sigue al cursor (solo desktop) */}
+        <CursorGlow />
 
         <div id="app-root">{children}</div>
 
