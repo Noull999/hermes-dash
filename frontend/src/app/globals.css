@@ -65,10 +65,16 @@ html, body {
 }
 
 /* ── Global HUD backdrop ───────────────────────────────────────────── */
+/* NOTE on z-index: html/body have an opaque background-color (--void), which
+   the browser promotes to the page "canvas" background — painted below
+   EVERYTHING, including negative z-index elements (a classic CSS gotcha).
+   So these ambient layers must use z-index: 0 (not negative) and rely on
+   DOM order for their own stacking; real content (header/nav/cards) sits
+   above them via z-index:auto or explicit positive z-index. */
 .hud-bg {
   position: fixed;
   inset: 0;
-  z-index: -2;
+  z-index: 0;
   pointer-events: none;
   background:
     radial-gradient(120% 80% at 50% -10%, rgba(255, 45, 85, 0.10), transparent 55%),
@@ -79,7 +85,7 @@ html, body {
 .hud-aurora {
   position: fixed;
   inset: -20%;
-  z-index: -2;
+  z-index: 0;
   pointer-events: none;
   filter: blur(58px) saturate(135%);
   opacity: 1;
@@ -102,7 +108,7 @@ html, body {
 .hud-grid {
   position: fixed;
   inset: 0;
-  z-index: -2;
+  z-index: 0;
   pointer-events: none;
   background-image:
     linear-gradient(var(--grid) 1px, transparent 1px),
@@ -116,7 +122,7 @@ html, body {
 .hud-stars {
   position: fixed;
   inset: 0;
-  z-index: -2;
+  z-index: 0;
   pointer-events: none;
   opacity: 0.55;
   background-image:
@@ -142,7 +148,7 @@ html, body {
 .hud-scan {
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   pointer-events: none;
   background: linear-gradient(
     180deg,
@@ -162,7 +168,7 @@ html, body {
 .hud-lines {
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   pointer-events: none;
   background: repeating-linear-gradient(
     180deg,
