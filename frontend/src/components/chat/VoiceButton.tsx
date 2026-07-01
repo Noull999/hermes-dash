@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Mic, MicOff } from 'lucide-react';
 import { classNames } from '@/lib/utils';
+import { useHermesStore } from '@/store/useHermesStore';
 
 // ── Web Speech API types ──
 interface SpeechRecognitionInstance extends EventTarget {
@@ -76,8 +77,66 @@ export default function VoiceButton({ onResult, disabled = false, onActiveChange
   const modeRef = useRef<VoiceMode>('tap');
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ── Audio-reactive: análisis de volumen del micrófono (Fase 0.6) ──
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const levelRafRef = useRef<number>(0);
+  const setMicLevel = useHermesStore((s) => s.setMicLevel);
+
   useEffect(() => { disabledRef.current = disabled; }, [disabled]);
   useEffect(() => { modeRef.current = mode; }, [mode]);
+
+  // Abre/cierra el análisis de volumen según el estado de escucha
+  useEffect(() => {
+    let cancelled = false;
+
+    const stop = () => {
+      cancelAnimationFrame(levelRafRef.current);
+      micStreamRef.current?.getTracks().forEach((t) => t.stop());
+      micStreamRef.current = null;
+      analyserRef.current = null;
+      if (audioCtxRef.current) { audioCtxRef.current.close().catch(() => {}); audioCtxRef.current = null; }
+      setMicLevel(0);
+    };
+
+    if (listening) {
+      navigator.mediaDevices?.getUserMedia({ audio: true }).then((stream) => {
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+        micStreamRef.current = stream;
+        const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const ctx = new AC();
+        audioCtxRef.current = ctx;
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 512;
+        analyser.smoothingTimeConstant = 0.75;
+        ctx.createMediaStreamSource(stream).connect(analyser);
+        analyserRef.current = analyser;
+
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        const loop = () => {
+          if (!analyserRef.current) return;
+          analyserRef.current.getByteTimeDomainData(data);
+          // RMS del waveform (centrado en 128)
+          let sum = 0;
+          for (let i = 0; i < data.length; i++) {
+            const v = (data[i] - 128) / 128;
+            sum += v * v;
+          }
+          const rms = Math.sqrt(sum / data.length);
+          // normaliza y aplica curva para que se sienta reactivo
+          const level = Math.min(1, Math.pow(rms * 3.2, 0.8));
+          setMicLevel(level);
+          levelRafRef.current = requestAnimationFrame(loop);
+        };
+        loop();
+      }).catch(() => { /* permiso denegado o sin soporte */ });
+    } else {
+      stop();
+    }
+
+    return () => { cancelled = true; stop(); };
+  }, [listening, setMicLevel]);
 
   // cargar modo guardado
   useEffect(() => {

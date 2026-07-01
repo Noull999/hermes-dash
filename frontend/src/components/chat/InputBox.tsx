@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { Send, X, FileText, Image as ImageIcon } from 'lucide-react';
 import VoiceButton from './VoiceButton';
 import { useChatStore } from '@/store/useChatStore';
+import { uiSound } from '@/lib/useUiSound';
 
 interface Attachment {
   type: 'image' | 'text';
@@ -43,6 +44,7 @@ export default function InputBox({ attachment, onRemoveAttachment }: InputBoxPro
     }
 
     if (!message.trim()) return;
+    uiSound.send();
     sendMessage(message);
     setInput('');
     onRemoveAttachment?.();

@@ -4,6 +4,7 @@ import { User, Copy, Check, Mic } from 'lucide-react';
 import { useState } from 'react';
 import { ChatMessage } from '@/store/useChatStore';
 import { formatRelativeTime } from '@/lib/utils';
+import DecryptText from './DecryptText';
 
 interface MessageProps {
   message: ChatMessage;
@@ -79,6 +80,17 @@ export default function Message({ message }: MessageProps) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
   const isVoice = message.source === 'voice';
+  const isAssistant = !isUser && !isSystem;
+
+  // Efecto decrypt solo en respuestas recientes de Hermès sin bloques de código (Fase 0.5)
+  const [decrypting, setDecrypting] = useState(
+    () =>
+      isAssistant &&
+      !message.loading &&
+      !message.content.includes('```') &&
+      message.content.length < 600 &&
+      Date.now() - new Date(message.timestamp).getTime() < 1800,
+  );
 
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''} fade-in`}>
@@ -119,6 +131,8 @@ export default function Message({ message }: MessageProps) {
               <span className="typing-dot" />
               <span className="typing-dot" />
             </div>
+          ) : decrypting ? (
+            <DecryptText text={message.content} onDone={() => setDecrypting(false)} />
           ) : (
             renderContent(message.content)
           )}

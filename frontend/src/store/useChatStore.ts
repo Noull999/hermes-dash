@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { wsClient } from '@/lib/ws';
 import { useHermesStore } from './useHermesStore';
+import { uiSound } from '@/lib/useUiSound';
 
 export interface ChatMessage {
   id: string;
@@ -105,6 +106,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const content = msg.content || streamingBuffer;
         if (content) {
           addMessage({ role: 'assistant', content });
+          uiSound.receive();
         }
         streamingBuffer = '';
       } else if (msg.type === 'response' || msg.type === 'message') {

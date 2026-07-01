@@ -41,6 +41,10 @@ interface HermesState {
   orbState: 'idle' | 'processing' | 'success' | 'error';
   orbMessage: string;
 
+  // Nivel de micrófono (0..1) para orb audio-reactive
+  micLevel: number;
+  setMicLevel: (level: number) => void;
+
   // Actions
   fetchHealth: () => Promise<void>;
   fetchTokens: () => Promise<void>;
@@ -74,6 +78,9 @@ export const useHermesStore = create<HermesState>((set, get) => ({
 
   orbState: 'idle',
   orbMessage: '',
+
+  micLevel: 0,
+  setMicLevel: (level) => set({ micLevel: level }),
 
   fetchHealth: async () => {
     set({ healthLoading: true, healthError: null });

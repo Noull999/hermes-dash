@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import ProgressBar from '@/components/ui/ProgressBar';
@@ -11,6 +11,8 @@ import {
   Sun,
   Bell,
   BellOff,
+  Volume2,
+  VolumeX,
   Globe,
   ShieldCheck,
   Info,
@@ -22,6 +24,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useLogStore, type LogEntry } from '@/store/useLogStore';
+import { isSoundEnabled, setSoundEnabled, uiSound } from '@/lib/useUiSound';
 
 const LEVEL_ICON: Record<string, React.ReactNode> = {
   error: <AlertTriangle size={12} className="text-red-400" />,
@@ -32,7 +35,17 @@ const LEVEL_ICON: Record<string, React.ReactNode> = {
 export default function SettingsPanel() {
   const [theme, setTheme] = useState('dark');
   const [notifications, setNotifications] = useState(true);
+  const [sound, setSound] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
+
+  useEffect(() => { setSound(isSoundEnabled()); }, []);
+
+  const toggleSound = () => {
+    const next = !sound;
+    setSound(next);
+    setSoundEnabled(next);
+    if (next) uiSound.open(); // feedback inmediato al activar
+  };
   const entries = useLogStore((s) => s.entries);
   const clear = useLogStore((s) => s.clear);
   const [logFilter, setLogFilter] = useState('all');
@@ -118,6 +131,30 @@ export default function SettingsPanel() {
             <div
               className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
                 notifications ? 'translate-x-[22px]' : 'translate-x-0.5'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* Sound toggle */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {sound ? (
+              <Volume2 size={16} className="text-cyan-400" />
+            ) : (
+              <VolumeX size={16} className="text-white/40" />
+            )}
+            <span className="text-sm text-white/80">Sonidos de interfaz</span>
+          </div>
+          <button
+            onClick={toggleSound}
+            className={`relative w-11 h-6 rounded-full transition-colors ${
+              sound ? 'bg-cyan-500' : 'bg-white/10'
+            }`}
+          >
+            <div
+              className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                sound ? 'translate-x-[22px]' : 'translate-x-0.5'
               }`}
             />
           </button>

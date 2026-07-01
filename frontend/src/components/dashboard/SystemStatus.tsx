@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useHermesStore } from '@/store/useHermesStore';
 import { Cpu, Database, HardDrive } from 'lucide-react';
+import NumberTicker from '@/components/ui/NumberTicker';
 
 function Bar({ label, value, Icon }: { label: string; value: number; Icon: React.ElementType }) {
   const color =
@@ -17,7 +18,9 @@ function Bar({ label, value, Icon }: { label: string; value: number; Icon: React
           <Icon size={10} className="text-[var(--text-faint)]" />
           <span className="hud-label text-[8px] text-[var(--text-muted)]">{label}</span>
         </div>
-        <span className="hud-readout text-[10px]" style={{ color }}>{value.toFixed(0)}%</span>
+        <span className="hud-readout text-[10px]" style={{ color }}>
+          <NumberTicker value={value} suffix="%" />
+        </span>
       </div>
       <div className="h-2 bg-[rgba(255,45,85,0.06)] rounded-full overflow-hidden border border-[var(--hairline)]">
         <div

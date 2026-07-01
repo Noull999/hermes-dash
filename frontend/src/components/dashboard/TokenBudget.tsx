@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useHermesStore } from '@/store/useHermesStore';
 import { Database, Activity, Cpu } from 'lucide-react';
+import NumberTicker from '@/components/ui/NumberTicker';
 
 function CircularProgress({ pct }: { pct: number }) {
   const r = 28;
@@ -65,7 +66,7 @@ export default function TokenBudget() {
         <CircularProgress pct={pct} />
         <div className="min-w-0 flex-1">
           <div className="hud-readout text-sm font-bold text-[var(--text)]">
-            {(remaining > 0 ? remaining : 0).toLocaleString()}
+            <NumberTicker value={remaining > 0 ? remaining : 0} locale />
           </div>
           <div className="hud-label text-[9px] text-[var(--text-muted)]">TOKENS RESTANTES</div>
           <div className="hud-label text-[8px] text-[var(--text-faint)] mt-0.5">

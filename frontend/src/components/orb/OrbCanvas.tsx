@@ -154,19 +154,23 @@ function Orb3DCanvas() {
       // Clear
       ctx.clearRect(0, 0, w, h);
 
-      // Glow
-      const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(w, h) * 0.5);
-      gradient.addColorStop(0, `rgba(${cr * 255 * brightness},${cg * 255 * brightness},${cb * 255 * brightness},0.08)`);
-      gradient.addColorStop(0.5, `rgba(${cr * 255 * brightness},${cg * 255 * brightness},${cb * 255 * brightness},0.03)`);
+      // Glow (se intensifica con el volumen de la voz)
+      const micGlow = useHermesStore.getState().micLevel;
+      const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(w, h) * 0.5 * (1 + micGlow * 0.3));
+      gradient.addColorStop(0, `rgba(${cr * 255 * brightness},${cg * 255 * brightness},${cb * 255 * brightness},${(0.08 + micGlow * 0.12).toFixed(3)})`);
+      gradient.addColorStop(0.5, `rgba(${cr * 255 * brightness},${cg * 255 * brightness},${cb * 255 * brightness},${(0.03 + micGlow * 0.05).toFixed(3)})`);
       gradient.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, w, h);
 
       // Draw particles
+      // Nivel de micrófono (0..1) — leído imperativo para no re-renderizar (Fase 0.6)
+      const mic = useHermesStore.getState().micLevel;
+      const micBoost = 1 + mic * 0.4;            // expande el orbe al hablar
       const baseSpeed = cpuHigh ? 2.5 : 0.4;
-      const ringSpeed = orbState === 'processing' ? 1.5 : baseSpeed;
-      const noiseScale = cpuHigh ? 0.12 : 0.05; // More agitation when CPU high
-      const scale = Math.min(w, h) * 0.38;
+      const ringSpeed = (orbState === 'processing' ? 1.5 : baseSpeed) * (1 + mic * 0.8);
+      const noiseScale = (cpuHigh ? 0.12 : 0.05) + mic * 0.06; // más agitación con la voz
+      const scale = Math.min(w, h) * 0.38 * micBoost;
 
       for (const particle of particles) {
         const nx = particleNoise(t * 0.3 + particle.seed, particle.seed + 1);
@@ -213,6 +217,15 @@ function Orb3DCanvas() {
           ctx.fillStyle = `rgba(${cr * 255 * brightness},${cg * 255 * brightness},${cb * 255 * brightness},${alpha * 0.15})`;
           ctx.fill();
         }
+      }
+
+      // Anillo reactivo a la voz (Fase 0.6)
+      if (mic > 0.02) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, Math.min(w, h) * (0.1 + mic * 0.14), 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${cr * 255},${cg * 255},${cb * 255},${(mic * 0.7).toFixed(3)})`;
+        ctx.lineWidth = 1.5 + mic * 2.5;
+        ctx.stroke();
       }
 
       // Center glow dot
