@@ -75,6 +75,28 @@ html, body {
     radial-gradient(90% 60% at 50% 110%, rgba(153, 28, 51, 0.07), transparent 60%),
     var(--void);
 }
+/* ── Aurora nebula — slow drifting depth behind the void (Fase 0.1) ──── */
+.hud-aurora {
+  position: fixed;
+  inset: -20%;
+  z-index: -2;
+  pointer-events: none;
+  filter: blur(64px) saturate(120%);
+  opacity: 0.9;
+  background:
+    radial-gradient(38% 44% at 22% 28%, rgba(79, 227, 255, 0.10), transparent 70%),
+    radial-gradient(34% 40% at 80% 22%, rgba(25, 167, 204, 0.09), transparent 72%),
+    radial-gradient(46% 52% at 62% 82%, rgba(255, 177, 61, 0.045), transparent 70%),
+    radial-gradient(40% 46% at 12% 78%, rgba(79, 227, 255, 0.06), transparent 74%);
+  animation: auroraDrift 46s ease-in-out infinite alternate;
+}
+@keyframes auroraDrift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  33%  { transform: translate3d(3%, -2.5%, 0) scale(1.08); }
+  66%  { transform: translate3d(-2.5%, 2%, 0) scale(1.04); }
+  100% { transform: translate3d(1.5%, 3%, 0) scale(1.1); }
+}
+
 /* fine technical grid with radial mask */
 .hud-grid {
   position: fixed;
@@ -181,6 +203,57 @@ html, body {
 /* panel without brackets (e.g. nav, header) */
 .hud-flat::before,
 .hud-flat::after { display: none; }
+
+/* ── Border-beam — a light traveling the perimeter (Fase 0.2) ────────── */
+.border-beam {
+  position: relative;
+  isolation: isolate;
+}
+.border-beam::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px; /* border thickness */
+  background: conic-gradient(
+    from var(--beam-angle, 0deg),
+    transparent 0deg,
+    transparent 300deg,
+    var(--cyan) 340deg,
+    var(--cyan-bright) 352deg,
+    var(--cyan) 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: beamRotate 4s linear infinite;
+}
+/* register the angle so it can be animated */
+@property --beam-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes beamRotate {
+  to { --beam-angle: 360deg; }
+}
+/* amber variant for accent / active states */
+.border-beam-amber::after {
+  background: conic-gradient(
+    from var(--beam-angle, 0deg),
+    transparent 0deg,
+    transparent 300deg,
+    var(--amber) 340deg,
+    #ffd489 352deg,
+    var(--amber) 360deg
+  );
+}
 
 /* ── HUD typography helpers ─────────────────────────────────────────── */
 .font-mono,
@@ -401,9 +474,51 @@ html, body {
   }
 }
 
-/* Respect users who prefer less motion */
+/* ── Boot sequence (Fase 0.3) ───────────────────────────────────────── */
+@keyframes bootBarFill {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+@keyframes bootLineIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.boot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--void);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.5s ease, clip-path 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.boot-overlay.boot-done {
+  opacity: 0;
+  clip-path: inset(0 0 100% 0);
+  pointer-events: none;
+}
+.boot-line { animation: bootLineIn 0.3s ease both; }
+
+/* ── Dock nav magnify (Fase 0.4) ────────────────────────────────────── */
+.dock-item {
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
+}
+.dock-item:active { transform: scale(0.9); }
+@keyframes navGlowPulse {
+  0%, 100% { box-shadow: 0 0 8px var(--cyan); }
+  50%      { box-shadow: 0 0 16px var(--cyan), 0 0 4px var(--cyan-bright); }
+}
+.nav-active-bar { animation: navGlowPulse 2.4s ease-in-out infinite; }
+
+/* Respect users who prefer less motion — kill the ambient sweeps/spins. */
 @media (prefers-reduced-motion: reduce) {
   .hud-scan,
+  .hud-aurora,
+  .border-beam::after,
+  .border-beam-amber::after,
+  .nav-active-bar,
   .reticle,
   .reticle-rev,
   .pulse-glow { animation: none !important; }

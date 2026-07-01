@@ -19,6 +19,7 @@ interface InputBoxProps {
 
 export default function InputBox({ attachment, onRemoveAttachment }: InputBoxProps) {
   const [input, setInput] = useState('');
+  const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const sendMessage = useChatStore((s) => s.sendMessage);
   const isConnected = useChatStore((s) => s.isConnected);
@@ -83,13 +84,15 @@ export default function InputBox({ attachment, onRemoveAttachment }: InputBoxPro
       {/* ── Input row ── */}
       <div className="flex items-end gap-2 p-3 bg-[var(--card)] border-t border-[rgba(255,255,255,0.06)]">
         <VoiceButton onResult={handleVoiceResult} />
-        <div className="flex-1 relative">
+        <div className={`flex-1 relative rounded-xl ${focused ? 'border-beam' : ''}`}>
           <input
             ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             placeholder={
               attachment
                 ? 'Añade un mensaje o envía el archivo...'

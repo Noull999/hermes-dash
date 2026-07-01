@@ -1,8 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { usePathname } from 'next/navigation';
-import Link from 'next/link';
 import OrbCanvas from '@/components/orb/OrbCanvas';
 import Message from '@/components/chat/Message';
 import InputBox from '@/components/chat/InputBox';
@@ -13,6 +11,7 @@ import { useMemoryStore } from '@/store/useMemoryStore';
 import { useHermesStore } from '@/store/useHermesStore';
 import { getTimeOfDay, classNames } from '@/lib/utils';
 import DebugPanel from '@/components/DebugPanel';
+import DockNav from '@/components/ui/DockNav';
 import {
   Wifi, WifiOff, Mic, Sparkles, Search,
   BarChart3, FolderGit2, Mail, CalendarDays, Briefcase, Brain, Settings,
@@ -37,8 +36,6 @@ const navTabs = [
 ];
 
 export default function HomePage() {
-  const pathname = usePathname();
-
   // ── Chat ──
   const messages = useChatStore((s) => s.messages);
   const isConnected = useChatStore((s) => s.isConnected);
@@ -384,42 +381,7 @@ export default function HomePage() {
 
       {/* ── Bottom Nav ── */}
       <DebugPanel />
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--void)]/92 backdrop-blur-xl border-t border-[var(--hairline)] safe-area-bottom">
-        <div className="max-w-lg mx-auto flex items-center justify-between h-[60px] px-1">
-          {navTabs.map(({ href, label, Icon }) => {
-            const isActive = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={classNames(
-                  'group relative flex flex-1 flex-col items-center gap-1 px-0.5 py-1.5 transition-all duration-200',
-                  isActive
-                    ? 'text-[var(--cyan)]'
-                    : 'text-[var(--text-faint)] hover:text-[var(--text-muted)]',
-                )}
-              >
-                <span
-                  className={classNames(
-                    'absolute top-0 left-1/2 -translate-x-1/2 h-[2px] rounded-full transition-all duration-300',
-                    isActive
-                      ? 'w-7 bg-[var(--cyan)] shadow-[0_0_8px_var(--cyan)]'
-                      : 'w-0 bg-transparent',
-                  )}
-                />
-                <Icon
-                  size={19}
-                  className={classNames(
-                    'transition-all duration-200',
-                    isActive && 'drop-shadow-[0_0_6px_var(--cyan)]',
-                  )}
-                />
-                <span className="hud-label text-[8px] leading-none">{label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
+      <DockNav tabs={navTabs} />
     </div>
   );
 }

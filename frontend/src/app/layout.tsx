@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Chakra_Petch, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import ClientWidgets from '@/components/ui/ClientWidgets';
+import BootSequence from '@/components/ui/BootSequence';
 
 // Display: technical squared HUD face (JARVIS readouts)
 const display = Chakra_Petch({
@@ -52,9 +53,13 @@ export default function RootLayout({
       <body className="scroll-smooth">
         {/* Global HUD backdrop layers */}
         <div className="hud-bg" aria-hidden />
+        <div className="hud-aurora" aria-hidden />
         <div className="hud-grid" aria-hidden />
         <div className="hud-lines" aria-hidden />
         <div className="hud-scan" aria-hidden />
+
+        {/* Boot sequence (solo primera carga de la sesión) */}
+        <BootSequence />
 
         <div id="app-root">{children}</div>
 

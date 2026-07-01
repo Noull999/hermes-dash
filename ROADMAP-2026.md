@@ -3,6 +3,88 @@
 
 ---
 
+## FASE 0 — JARVIS GLOW-UP (estética / motion)
+> **Objetivo:** que la interfaz deje de sentirse estática y pase a sentirse "viva" tipo JARVIS.
+> Todo aditivo, sin dependencias nuevas (usa CSS + three.js que ya está instalado).
+> Paleta objetivo: **JARVIS puro** — cyan `--cyan` dominante + amber `--amber` como único acento.
+>
+> **Estado:** ✅ items 0.1–0.4 los implementa Claude directo. Items 0.5–0.8 los implementa Hermès.
+
+Stack ya disponible: Tailwind v4, three.js + @react-three/fiber, zustand, lucide-react. **No instalar Framer Motion** salvo que un item lo pida — casi todo se hace con `@keyframes` + `clip-path` + `conic-gradient`, coherente con lo que ya existe en `globals.css`.
+
+### 0.1 — Fondo aurora animado (el fix #1 del "se ve básico")
+El `--void` plano es el 60% de por qué se ve genérico. Agregar una capa de aurora/nebulosa que deriva lento detrás de todo.
+- **`globals.css`**: nueva capa `.hud-aurora` (fixed, `z-index: -2`, `pointer-events:none`) con 2-3 blobs radiales cyan/amber muy tenues (`opacity 0.06–0.10`) que se mueven con `@keyframes auroraDrift` (60–90s, `translate` + `scale` suave). `filter: blur(60px)`. Respetar `prefers-reduced-motion`.
+- **`layout.tsx`**: montar `<div className="hud-aurora" aria-hidden />` junto a las otras capas hud.
+- Clave: sutil. No debe competir con el orb ni reducir legibilidad del texto.
+
+### 0.2 — Border-beam en superficies clave
+Borde con un haz de luz que recorre el perímetro. Marca JARVIS instantánea.
+- **`globals.css`**: `@keyframes beamRotate` + clase `.border-beam` que usa `conic-gradient` enmascarado en el borde (técnica: pseudo-elemento con `padding: 1px`, `mask` con `linear-gradient` en composición `xor`).
+- **Componente** `frontend/src/components/ui/BorderBeam.tsx` (opcional, reutilizable) o solo la clase.
+- Aplicar a: `InputBox` (el input principal), `VoiceButton` cuando `listening`, y las `BentoCard` de la Fase 2.
+
+### 0.3 — Boot sequence (splash de arranque)
+Al cargar la app, overlay de ~1.5s tipo terminal JARVIS que "inicializa el sistema".
+- **Componente** `frontend/src/components/ui/BootSequence.tsx`: overlay `fixed inset-0 z-[100]` con fondo `--void`.
+- Secuencia de líneas mono que aparecen escalonadas: `> INIT SYS.HERMES`, `> LINK GATEWAY :8642 ... OK`, `> LOAD MODULES ... OK`, `> HUD ONLINE`. Barra de progreso cyan.
+- Al terminar, `fade-out` + `clip-path` reveal de la app. Guardar flag en `sessionStorage` para no repetir en cada navegación (solo primera carga de sesión).
+- Montar en `layout.tsx` o en `page.tsx`.
+
+### 0.4 — Bottom nav estilo Dock (magnify + glow)
+El nav actual es plano. Convertirlo en dock: el ícono bajo el cursor/tap crece y brilla, los vecinos crecen menos (efecto lupa macOS).
+- Modificar el `<nav>` en `page.tsx` (y `BottomNav.tsx` si aplica).
+- En desktop: magnify por proximidad de cursor (calcular distancia al centro de cada ícono → escala). En mobile: press-scale + glow en el activo.
+- Indicador activo: la línea superior cyan ya existe — agregarle `box-shadow` glow animado.
+
+### 0.5 — Texto que se revela/desencripta (respuestas de Hermès) [HERMÈS]
+Las respuestas aparecen de golpe. Hacer que se "escriban" o "desencripten".
+- **Componente** `frontend/src/components/chat/DecryptText.tsx`: recibe el texto final y anima carácter por carácter (efecto "scramble" → cada char pasa por símbolos random antes de fijarse, ~20ms/char, tope de duración ~1.2s para mensajes largos).
+- Integrar en `Message.tsx` SOLO para `role === 'assistant'` y solo en el mensaje más reciente (no re-animar historial). Cuidado: `renderContent` usa markdown + `dangerouslySetInnerHTML`; animar el texto plano ANTES de pasarlo por el parser, o animar solo mensajes sin bloques de código.
+- Alternativa más simple y segura: reveal por `clip-path` línea por línea (menos "hacker" pero cero riesgo con el markdown).
+
+### 0.6 — Orb audio-reactive (pulsa con tu voz) [HERMÈS]
+Cuando usas el micrófono, el orb debe reaccionar al volumen de tu voz en tiempo real.
+- En `VoiceButton.tsx`, además de `SpeechRecognition`, abrir `getUserMedia` → `AudioContext` → `AnalyserNode` para leer el volumen (RMS) en cada frame.
+- Publicar el nivel en un store zustand (`useHermesStore` → `micLevel: number 0..1`).
+- En `OrbCanvas.tsx` (`Orb3DCanvas`), leer `micLevel` y modular: escala de partículas, brillo del glow central y `ringSpeed`. Sin voz = idle normal.
+- Respetar permisos: solo abrir el AudioContext cuando el mic ya está activo.
+
+### 0.7 — Number ticker en métricas [HERMÈS]
+Los números del dashboard (CPU, RAM, tokens) deben "subir" animados, no aparecer fijos.
+- **Componente** `frontend/src/components/ui/NumberTicker.tsx`: recibe `value`, anima desde el valor previo con `requestAnimationFrame` + easing (~600ms), `tabular-nums`.
+- Usar en todos los widgets de la Fase 2 y en cualquier readout numérico.
+
+### 0.8 — Sonidos UI sutiles (opcional, tipo interfaz sci-fi) [HERMÈS]
+Feedback sonoro discreto: beep corto al enviar, "whoosh" al abrir paneles, click al navegar.
+- **Hook** `frontend/src/lib/useUiSound.ts` usando `AudioContext` (oscillators sintetizados, sin archivos) o 3-4 samples cortos en `/public/sounds/`.
+- Toggle global en `/settings` (`localStorage: hermes_sound_enabled`, default OFF para no molestar).
+- Enganchar en: enviar mensaje, abrir command palette (Fase 1), cambio de estado del orb.
+
+### Orden de ejecución Fase 0
+```
+0.1 Aurora background   — 30min — CLAUDE — máximo impacto/esfuerzo
+0.2 Border-beam         — 45min — CLAUDE
+0.3 Boot sequence       — 45min — CLAUDE
+0.4 Dock nav            — 1h    — CLAUDE
+0.5 Text decrypt        — 1-2h  — HERMÈS
+0.6 Orb audio-reactive  — 2h    — HERMÈS
+0.7 Number ticker       — 30min — HERMÈS
+0.8 Sonidos UI          — 1-2h  — HERMÈS (opcional)
+```
+
+### Checkpoint de review Fase 0
+- [ ] 0.1: fondo tiene movimiento sutil sin afectar legibilidad ni FPS en mobile
+- [ ] 0.2: haz de luz recorre bordes de input/cards, coherente con el cyan
+- [ ] 0.3: al cargar aparece la secuencia de boot, no se repite al navegar
+- [ ] 0.4: íconos del nav reaccionan (magnify/press + glow en activo)
+- [ ] 0.5: respuestas de Hermès se revelan animadas sin romper markdown/código
+- [ ] 0.6: orb pulsa con la voz al hablar
+- [ ] 0.7: métricas suben animadas
+- [ ] 0.8: sonidos opcionales, off por defecto
+
+---
+
 ## FASE 1 — Command Palette (sin backend)
 
 ### 1.1 Crear `frontend/src/components/ui/CommandPalette.tsx`
