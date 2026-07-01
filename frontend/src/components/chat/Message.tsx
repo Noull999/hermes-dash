@@ -88,8 +88,8 @@ export default function Message({ message }: MessageProps) {
       isAssistant &&
       !message.loading &&
       !message.content.includes('```') &&
-      message.content.length < 600 &&
-      Date.now() - new Date(message.timestamp).getTime() < 1800,
+      message.content.length < 900 &&
+      Date.now() - new Date(message.timestamp).getTime() < 2500,
   );
 
   return (

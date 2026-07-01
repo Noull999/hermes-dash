@@ -81,14 +81,14 @@ html, body {
   inset: -20%;
   z-index: -2;
   pointer-events: none;
-  filter: blur(64px) saturate(120%);
-  opacity: 0.9;
+  filter: blur(58px) saturate(135%);
+  opacity: 1;
   background:
-    radial-gradient(38% 44% at 22% 28%, rgba(255, 45, 85, 0.11), transparent 70%),
-    radial-gradient(34% 40% at 80% 22%, rgba(153, 28, 51, 0.10), transparent 72%),
-    radial-gradient(46% 52% at 62% 82%, rgba(255, 159, 61, 0.05), transparent 70%),
-    radial-gradient(40% 46% at 12% 78%, rgba(255, 107, 138, 0.06), transparent 74%);
-  animation: auroraDrift 46s ease-in-out infinite alternate;
+    radial-gradient(38% 44% at 22% 28%, rgba(255, 45, 85, 0.24), transparent 68%),
+    radial-gradient(34% 40% at 80% 22%, rgba(153, 28, 51, 0.22), transparent 70%),
+    radial-gradient(46% 52% at 62% 82%, rgba(255, 159, 61, 0.11), transparent 68%),
+    radial-gradient(40% 46% at 12% 78%, rgba(255, 107, 138, 0.14), transparent 72%);
+  animation: auroraDrift 40s ease-in-out infinite alternate;
 }
 @keyframes auroraDrift {
   0%   { transform: translate3d(0, 0, 0) scale(1); }
@@ -511,6 +511,11 @@ html, body {
   50%      { box-shadow: 0 0 16px var(--cyan), 0 0 4px var(--cyan-bright); }
 }
 .nav-active-bar { animation: navGlowPulse 2.4s ease-in-out infinite; }
+@keyframes navFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2px); }
+}
+.nav-active-icon { animation: navFloat 2.4s ease-in-out infinite; }
 
 /* Respect users who prefer less motion — kill the ambient sweeps/spins. */
 @media (prefers-reduced-motion: reduce) {
@@ -519,6 +524,7 @@ html, body {
   .border-beam::after,
   .border-beam-amber::after,
   .nav-active-bar,
+  .nav-active-icon,
   .reticle,
   .reticle-rev,
   .pulse-glow { animation: none !important; }

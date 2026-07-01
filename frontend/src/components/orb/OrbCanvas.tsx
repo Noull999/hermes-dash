@@ -33,7 +33,9 @@ function Orb3DCanvas() {
   const errorFlashRef = useRef(0);
 
   const cpuHigh = (system?.cpu_pct || 0) > 80;
-  const gatewayOffline = system?.gateway !== 'online';
+  // Solo atenuar si SABEMOS que está offline; si el dato aún no cargó (home no
+  // hace fetch de system), no atenuar — antes dejaba el orb al 20% siempre.
+  const gatewayOffline = !!system && system.gateway !== 'online';
 
   // Detect recent error from activity feed
   useEffect(() => {
@@ -281,7 +283,9 @@ function OrbSVGFallback() {
   const orbState = useHermesStore((s) => s.orbState);
   const system = useHermesStore((s) => s.system);
   const cpuHigh = (system?.cpu_pct || 0) > 80;
-  const gatewayOffline = system?.gateway !== 'online';
+  // Solo atenuar si SABEMOS que está offline; si el dato aún no cargó (home no
+  // hace fetch de system), no atenuar — antes dejaba el orb al 20% siempre.
+  const gatewayOffline = !!system && system.gateway !== 'online';
   const hourColor = getHourColors();
 
   const getColors = () => {

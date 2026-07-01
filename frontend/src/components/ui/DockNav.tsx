@@ -30,17 +30,18 @@ export default function DockNav({ tabs }: DockNavProps) {
     setMouseX(e.clientX);
   }, []);
 
-  const scaleFor = (i: number): number => {
-    if (mouseX === null) return 1;
+  const scaleFor = (i: number, isActive: boolean): number => {
+    // Sin cursor (móvil/touch): el ítem activo queda realzado igual.
+    if (mouseX === null) return isActive ? 1.22 : 1;
     const el = itemRefs.current[i];
-    if (!el) return 1;
+    if (!el) return isActive ? 1.22 : 1;
     const rect = el.getBoundingClientRect();
     const center = rect.left + rect.width / 2;
     const dist = Math.abs(mouseX - center);
-    if (dist > NEIGHBOR) return 1;
+    if (dist > NEIGHBOR) return isActive ? 1.12 : 1;
     // interpolación suave (coseno) del centro hacia el borde de influencia
     const t = 1 - dist / NEIGHBOR;
-    return 1 + (MAX_SCALE - 1) * (t * t);
+    return Math.max(isActive ? 1.12 : 1, 1 + (MAX_SCALE - 1) * (t * t));
   };
 
   return (
@@ -53,7 +54,7 @@ export default function DockNav({ tabs }: DockNavProps) {
       <div className="max-w-lg mx-auto flex items-end justify-between h-[60px] px-1">
         {tabs.map(({ href, label, Icon }, i) => {
           const isActive = pathname === href;
-          const scale = scaleFor(i);
+          const scale = scaleFor(i, isActive);
           return (
             <Link
               key={href}
@@ -79,7 +80,7 @@ export default function DockNav({ tabs }: DockNavProps) {
                 size={19}
                 className={classNames(
                   'transition-all duration-200',
-                  isActive && 'drop-shadow-[0_0_6px_var(--cyan)]',
+                  isActive && 'drop-shadow-[0_0_6px_var(--cyan)] nav-active-icon',
                 )}
               />
               <span className="hud-label text-[8px] leading-none">{label}</span>
