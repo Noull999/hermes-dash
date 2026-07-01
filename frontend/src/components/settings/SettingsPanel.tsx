@@ -3,18 +3,18 @@
 import { useState, useEffect } from 'react';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import ProgressBar from '@/components/ui/ProgressBar';
 import PushManager from '@/components/PushManager';
+import SystemStatus from '@/components/dashboard/SystemStatus';
+import TokenBudget from '@/components/dashboard/TokenBudget';
+import ServiceMonitor from '@/components/dashboard/ServiceMonitor';
+import ConnectionCard from './ConnectionCard';
+import SessionsManager from './SessionsManager';
 import {
   User,
-  Moon,
-  Sun,
   Bell,
-  BellOff,
   Volume2,
   VolumeX,
   Globe,
-  ShieldCheck,
   Info,
   ExternalLink,
   Monitor,
@@ -22,6 +22,10 @@ import {
   Terminal,
   Trash2,
   AlertTriangle,
+  Activity,
+  Radio,
+  History,
+  Cpu,
 } from 'lucide-react';
 import { useLogStore, type LogEntry } from '@/store/useLogStore';
 import { isSoundEnabled, setSoundEnabled, uiSound } from '@/lib/useUiSound';
@@ -33,10 +37,11 @@ const LEVEL_ICON: Record<string, React.ReactNode> = {
 };
 
 export default function SettingsPanel() {
-  const [theme, setTheme] = useState('dark');
-  const [notifications, setNotifications] = useState(true);
   const [sound, setSound] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
+  const entries = useLogStore((s) => s.entries);
+  const clear = useLogStore((s) => s.clear);
+  const [logFilter, setLogFilter] = useState('all');
 
   useEffect(() => { setSound(isSoundEnabled()); }, []);
 
@@ -46,15 +51,6 @@ export default function SettingsPanel() {
     setSoundEnabled(next);
     if (next) uiSound.open(); // feedback inmediato al activar
   };
-  const entries = useLogStore((s) => s.entries);
-  const clear = useLogStore((s) => s.clear);
-  const [logFilter, setLogFilter] = useState('all');
-
-  const themes = [
-    { id: 'dark', icon: Moon, label: 'Oscuro' },
-    { id: 'light', icon: Sun, label: 'Claro' },
-    { id: 'system', icon: Monitor, label: 'Sistema' },
-  ];
 
   return (
     <div className="space-y-4">
@@ -80,61 +76,42 @@ export default function SettingsPanel() {
         </div>
       </Card>
 
+      {/* Conexión */}
+      <Card className="p-4 space-y-3">
+        <h3 className="font-semibold text-white/90 flex items-center gap-2">
+          <Radio className="w-4 h-4 text-cyan-400" />
+          Conexión
+        </h3>
+        <ConnectionCard />
+      </Card>
+
+      {/* Telemetría del sistema */}
+      <Card className="p-4 space-y-4">
+        <h3 className="font-semibold text-white/90 flex items-center gap-2">
+          <Cpu className="w-4 h-4 text-cyan-400" />
+          Telemetría del Sistema
+        </h3>
+        <SystemStatus />
+        <div className="pt-1 border-t border-white/[0.04]">
+          <TokenBudget />
+        </div>
+      </Card>
+
+      {/* Monitor de servicios */}
+      <Card className="p-4 space-y-3">
+        <h3 className="font-semibold text-white/90 flex items-center gap-2">
+          <Activity className="w-4 h-4 text-cyan-400" />
+          Monitor de Servicios
+        </h3>
+        <ServiceMonitor />
+      </Card>
+
       {/* Preferencias */}
       <Card className="p-4 space-y-4">
         <h3 className="font-semibold text-white/90 flex items-center gap-2">
           <Monitor className="w-4 h-4 text-cyan-400" />
           Preferencias
         </h3>
-
-        {/* Theme toggle */}
-        <div>
-          <label className="text-xs text-white/50 mb-2 block">Tema</label>
-          <div className="flex gap-2">
-            {themes.map((t) => {
-              const Icon = t.icon;
-              const active = theme === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setTheme(t.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition ${
-                    active
-                      ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                      : 'bg-white/5 text-white/60 hover:bg-white/10'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {t.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Notifications toggle */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {notifications ? (
-              <Bell size={16} className="text-cyan-400" />
-            ) : (
-              <BellOff size={16} className="text-white/40" />
-            )}
-            <span className="text-sm text-white/80">Notificaciones</span>
-          </div>
-          <button
-            onClick={() => setNotifications(!notifications)}
-            className={`relative w-11 h-6 rounded-full transition-colors ${
-              notifications ? 'bg-cyan-500' : 'bg-white/10'
-            }`}
-          >
-            <div
-              className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                notifications ? 'translate-x-[22px]' : 'translate-x-0.5'
-              }`}
-            />
-          </button>
-        </div>
 
         {/* Sound toggle */}
         <div className="flex items-center justify-between">
@@ -168,6 +145,15 @@ export default function SettingsPanel() {
           Notificaciones Push
         </h3>
         <PushManager />
+      </Card>
+
+      {/* Sesiones */}
+      <Card className="p-4 space-y-3">
+        <h3 className="font-semibold text-white/90 flex items-center gap-2">
+          <History className="w-4 h-4 text-cyan-400" />
+          Sesiones Guardadas
+        </h3>
+        <SessionsManager />
       </Card>
 
       {/* API */}
