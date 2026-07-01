@@ -56,6 +56,7 @@ export default function RootLayout({
         {/* Global HUD backdrop layers */}
         <div className="hud-bg" aria-hidden />
         <div className="hud-aurora" aria-hidden />
+        <div className="hud-stars" aria-hidden />
         <div className="hud-grid" aria-hidden />
         <div className="hud-lines" aria-hidden />
         <div className="hud-scan" aria-hidden />
