@@ -481,6 +481,21 @@ html, body {
 }
 .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
 
+/* Smaller orb on mobile */
+@media (max-width: 480px) {
+  .orb-hero {
+    height: 200px !important;
+  }
+  .reticle-mobile {
+    width: 150px !important;
+    height: 150px !important;
+  }
+  .reticle-rev-mobile {
+    width: 120px !important;
+    height: 120px !important;
+  }
+}
+
 /* ── Sessions panel slide-in ────────────────────────────────────────── */
 @keyframes slideIn {
   from { transform: translateX(100%); }
@@ -501,23 +516,33 @@ html, body {
   grid-column: 1 / -1;
 }
 
-@media (max-width: 768px) {
-  .bento-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-  .bento-grid > * {
-    grid-column: span 1 !important;
-  }
-  .bento-grid > .col-span-full {
-    grid-column: 1 / -1 !important;
-  }
-}
-
+/* Mobile content clamping — max-height with scroll on small screens */
 @media (max-width: 480px) {
   .bento-grid {
     grid-template-columns: 1fr;
     gap: 8px;
+  }
+
+  .mobile-clamp-lg {
+    max-height: 320px;
+    overflow-y: auto;
+  }
+
+  .mobile-clamp-md {
+    max-height: 240px;
+    overflow-y: auto;
+  }
+
+  .mobile-clamp-sm {
+    max-height: 180px;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 768px) and (min-width: 481px) {
+  .bento-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
 }
 

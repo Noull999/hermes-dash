@@ -48,10 +48,10 @@ export default function DebugPanel() {
     return (
       <button
         onClick={handleTitleTap}
-        className="fixed bottom-20 right-3 z-50 p-2 rounded-full bg-[var(--card)] border border-[var(--hairline)] text-[var(--text-muted)] hover:text-[var(--text)] opacity-40 hover:opacity-100 transition-all"
+        className="fixed bottom-24 left-3 z-50 p-1.5 rounded-full bg-[var(--card)] border border-[var(--hairline)] text-[var(--text-muted)] hover:text-[var(--text)] opacity-30 hover:opacity-80 transition-all"
         title="Toca 5 veces para abrir logs de debug"
       >
-        <Bug size={16} />
+        <Bug size={14} />
       </button>
     );
   }

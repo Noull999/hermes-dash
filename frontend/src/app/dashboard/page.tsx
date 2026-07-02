@@ -43,7 +43,7 @@ export default function DashboardPage() {
   return (
     <ClientLayout>
       {/* ── Orb hero ── */}
-      <div className="relative h-[260px] -mx-4 -mt-4 overflow-hidden border-b border-[var(--hairline)] mb-4">
+      <div className="orb-hero relative h-[260px] -mx-4 -mt-4 overflow-hidden border-b border-[var(--hairline)] mb-4">
         <OrbCanvas />
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="reticle w-[200px] h-[200px] rounded-full border border-[var(--hairline)]" />
@@ -88,12 +88,12 @@ export default function DashboardPage() {
       {/* ── Bento Grid Dashboard ── */}
       <div className="bento-grid px-4 pb-24">
         {/* ── PRIORIDAD 1: Correos relevantes ── */}
-        <BentoCard colSpan={4} title="CORREOS RELEVANTES" className="order-first md:order-none">
+        <BentoCard colSpan={4} title="CORREOS RELEVANTES" className="order-first md:order-none mobile-clamp-lg">
           <ImportantEmails />
         </BentoCard>
 
         {/* ── PRIORIDAD 2: Monitor + Tokens + Clima ── */}
-        <BentoCard colSpan={2} title="MONITOR DE SERVICIOS">
+        <BentoCard colSpan={2} title="MONITOR DE SERVICIOS" className="mobile-clamp-md">
           <ServiceMonitor />
         </BentoCard>
 
@@ -114,21 +114,21 @@ export default function DashboardPage() {
           <SystemStatus />
         </BentoCard>
 
-        <BentoCard colSpan={2} title="RECORDATORIOS" icon={<ListTodo size={14} />}>
+        <BentoCard colSpan={2} title="RECORDATORIOS" icon={<ListTodo size={14} />} className="mobile-clamp-md">
           <ReminderList />
         </BentoCard>
 
         {/* ── PRIORIDAD 4: Repos + Trabajos ── */}
-        <BentoCard colSpan={2} title="REPOSITORIOS">
+        <BentoCard colSpan={2} title="REPOSITORIOS" className="mobile-clamp-sm">
           <RecentRepos />
         </BentoCard>
 
-        <BentoCard colSpan={2} title="TRABAJOS ACTIVOS">
+        <BentoCard colSpan={2} title="TRABAJOS ACTIVOS" className="mobile-clamp-sm">
           <ActiveJobs />
         </BentoCard>
 
         {/* ── PRIORIDAD 5: Timeline Hermes al fondo ── */}
-        <BentoCard colSpan={4} title="TIMELINE HERMES" icon={<Activity size={14} />}>
+        <BentoCard colSpan={4} title="TIMELINE HERMES" icon={<Activity size={14} />} className="mobile-clamp-lg">
           <TimelineCard />
         </BentoCard>
       </div>

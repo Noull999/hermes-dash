@@ -4,17 +4,14 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import OrbCanvas from '@/components/orb/OrbCanvas';
 import Message from '@/components/chat/Message';
 import InputBox from '@/components/chat/InputBox';
-import VoiceButton from '@/components/chat/VoiceButton';
 import SessionsPanel from '@/components/chat/SessionsPanel';
+import BottomNav from '@/components/ui/BottomNav';
 import { useChatStore } from '@/store/useChatStore';
 import { useMemoryStore } from '@/store/useMemoryStore';
 import { useHermesStore } from '@/store/useHermesStore';
 import { getTimeOfDay, classNames } from '@/lib/utils';
-import DebugPanel from '@/components/DebugPanel';
-import DockNav from '@/components/ui/DockNav';
 import {
-  Wifi, WifiOff, Mic, Sparkles, Search,
-  BarChart3, FolderGit2, Mail, CalendarDays, Briefcase, Brain, Settings,
+  Wifi, WifiOff, Search, Brain,
 } from 'lucide-react';
 
 const STATE_LABEL: Record<string, string> = {
@@ -23,17 +20,6 @@ const STATE_LABEL: Record<string, string> = {
   success: 'COMPLETADO',
   error: 'ALERTA',
 };
-
-const navTabs = [
-  { href: '/', label: 'HOME', Icon: Sparkles },
-  { href: '/dashboard', label: 'PANEL', Icon: BarChart3 },
-  { href: '/email', label: 'MAIL', Icon: Mail },
-  { href: '/calendar', label: 'CAL', Icon: CalendarDays },
-  { href: '/repos', label: 'REPOS', Icon: FolderGit2 },
-  { href: '/jobs', label: 'JOBS', Icon: Briefcase },
-  { href: '/brain', label: 'BRAIN', Icon: Brain },
-  { href: '/settings', label: 'SYS', Icon: Settings },
-];
 
 export default function HomePage() {
   // ── Chat ──
@@ -53,8 +39,7 @@ export default function HomePage() {
   const online = health?.status === 'ok';
   const healthLoaded = health !== null;
 
-  // ── Voice ──
-  const [micActive, setMicActive] = useState(false);
+  // ── Scroll ──
   const [orbCompact, setOrbCompact] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -99,13 +84,6 @@ export default function HomePage() {
     el.addEventListener('scroll', handler, { passive: true });
     return () => el.removeEventListener('scroll', handler);
   }, []);
-
-  // Voice → auto-send (estable con useCallback)
-  const handleVoiceResult = useCallback((text: string) => {
-    if (text.trim()) {
-      sendMessage(text.trim(), { source: 'voice' });
-    }
-  }, [sendMessage]);
 
   // ── Drag & Drop handlers ──
   const handleDrop = useCallback(async (e: React.DragEvent) => {
@@ -192,17 +170,6 @@ export default function HomePage() {
             currentSessionId={currentSessionId}
             onSelectSession={handleSelectSession}
           />
-          {micActive && (
-            <span className="text-[11px] text-[var(--cyan)] flex items-center gap-1 animate-pulse">
-              <Mic size={10} />
-              ESCUCHANDO
-            </span>
-          )}
-          <VoiceButton
-            onResult={handleVoiceResult}
-            disabled={isTyping}
-            onActiveChange={setMicActive}
-          />
         </div>
       </div>
 
@@ -247,7 +214,7 @@ export default function HomePage() {
         {/* ── Orb hero ── */}
         <div
           className={classNames(
-            'relative transition-all duration-300 ease-out',
+            'orb-hero relative transition-all duration-300 ease-out',
             orbHeight,
           )}
         >
@@ -312,13 +279,11 @@ export default function HomePage() {
         </div>
 
         {/* ── Messages ── */}
-        <div className="px-4 py-4 space-y-4 pb-[132px]">
+        <div className="px-4 py-4 space-y-4 pb-[120px]">
           {!hasMessages ? (
             <div className="flex flex-col items-center text-center px-6 pt-4">
               <p className="text-sm text-[var(--text-muted)] max-w-xs leading-relaxed mb-6">
-                {micActive
-                  ? '🎤 Te escucho, di lo que necesites'
-                  : 'Presiona el micrófono y habla, o escribe tu mensaje'}
+                Presiona el micrófono y habla, o escribe tu mensaje
               </p>
 
               {/* Sugerencias */}
@@ -340,11 +305,9 @@ export default function HomePage() {
                 ))}
               </div>
 
-              {micActive && (
-                <div className="mt-6 px-4 py-2 rounded-xl bg-[rgba(255,45,85,0.06)] border border-[rgba(255,45,85,0.1)] text-xs text-[var(--cyan)]">
-                  🎤 Habla normalmente, te escucho
-                </div>
-              )}
+              <div className="mt-6 px-4 py-2 rounded-xl bg-[rgba(255,45,85,0.06)] border border-[rgba(255,45,85,0.1)] text-xs text-[var(--cyan)] hidden">
+                🎤 Habla normalmente, te escucho
+              </div>
             </div>
           ) : (
             messages.map((msg) => (
@@ -380,8 +343,7 @@ export default function HomePage() {
       </div>
 
       {/* ── Bottom Nav ── */}
-      <DebugPanel />
-      <DockNav tabs={navTabs} />
+      <BottomNav />
     </div>
   );
 }
